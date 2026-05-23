@@ -1,0 +1,296 @@
+﻿/**
+ * T2M - Bencode 解析器 & 磁力链接生成
+ * 纯客户端实现，无外部依赖
+ */
+window.T2M = window.T2M || {};
+
+/**
+ * Bencode 解码器
+ * 解析 .torrent 文件的 Bencode 编码内容
+ *
+ * Bencode 格式：
+ *   - 字符串: <长度>:<内容>  例: 4:spam → "spam"
+ *   - 整数:   i<数字>e      例: i3e → 3
+ *   - 列表:   l<元素>e      例: l4:spam4:eggse → ["spam","eggs"]
+ *   - 字典:   d<键值对>e    例: d3:cow3:moo4:spam4:eggse
+ */
+window.T2M.Bencode = (function () {
+  /**
+   * 将字节数组解码为 UTF-8 字符串
+   */
+  function bytesToString(bytes) {
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  }
+
+  /**
+   * 将字符串编码为 UTF-8 字节数组
+   */
+  function stringToBytes(str) {
+    return new TextEncoder().encode(str);
+  }
+
+  /**
+   * 解析 Bencode 编码的数据
+   * @param {Uint8Array} data - 原始字节数据
+   * @param {number} offset - 起始偏移
+   * @returns {{ value: any, nextOffset: number, rawBytes?: Uint8Array }}
+   */
+  function decode(data, offset) {
+    const byte = data[offset];
+    const char = String.fromCharCode(byte);
+
+    if (char === 'i') {
+      return decodeInt(data, offset);
+    } else if (char === 'l') {
+      return decodeList(data, offset);
+    } else if (char === 'd') {
+      return decodeDict(data, offset);
+    } else if (char >= '0' && char <= '9') {
+      return decodeString(data, offset);
+    } else {
+      throw new Error('无法识别的 Bencode 类型，偏移: ' + offset + '，字节: ' + byte);
+    }
+  }
+
+  /**
+   * 解码字符串: <长度>:<内容>
+   * @returns {{ value: string, nextOffset: number, rawBytes: Uint8Array }}
+   */
+  function decodeString(data, offset) {
+    let colonPos = offset;
+    while (colonPos < data.length && data[colonPos] !== 0x3a) {
+      colonPos++;
+    }
+    if (colonPos >= data.length) {
+      throw new Error('Bencode 字符串格式错误：缺少冒号');
+    }
+
+    const lengthStr = bytesToString(data.slice(offset, colonPos));
+    const length = parseInt(lengthStr, 10);
+    if (isNaN(length)) {
+      throw new Error('Bencode 字符串长度解析失败: ' + lengthStr);
+    }
+
+    const contentStart = colonPos + 1;
+    const contentEnd = contentStart + length;
+    if (contentEnd > data.length) {
+      throw new Error('Bencode 字符串长度超出数据范围');
+    }
+
+    const rawBytes = data.slice(offset, contentEnd);
+    const value = bytesToString(data.slice(contentStart, contentEnd));
+
+    return { value, nextOffset: contentEnd, rawBytes };
+  }
+
+  /**
+   * 解码整数: i<数字>e
+   * @returns {{ value: number, nextOffset: number, rawBytes: Uint8Array }}
+   */
+  function decodeInt(data, offset) {
+    const start = offset;
+    let pos = offset + 1;
+    while (pos < data.length && data[pos] !== 0x65) {
+      pos++;
+    }
+    if (pos >= data.length) {
+      throw new Error('Bencode 整数格式错误：缺少结束标记 e');
+    }
+
+    const numStr = bytesToString(data.slice(offset + 1, pos));
+    const value = parseInt(numStr, 10);
+    const rawBytes = data.slice(start, pos + 1);
+
+    return { value, nextOffset: pos + 1, rawBytes };
+  }
+
+  /**
+   * 解码列表: l<元素>e
+   * @returns {{ value: Array, nextOffset: number, rawBytes: Uint8Array }}
+   */
+  function decodeList(data, offset) {
+    const start = offset;
+    let pos = offset + 1;
+    const result = [];
+
+    while (pos < data.length && data[pos] !== 0x65) {
+      const decoded = decode(data, pos);
+      result.push(decoded.value);
+      pos = decoded.nextOffset;
+    }
+
+    if (pos >= data.length) {
+      throw new Error('Bencode 列表格式错误：缺少结束标记 e');
+    }
+
+    const rawBytes = data.slice(start, pos + 1);
+    return { value: result, nextOffset: pos + 1, rawBytes };
+  }
+
+  /**
+   * 解码字典: d<键值对>e
+   * @returns {{ value: Object, nextOffset: number, rawBytes: Uint8Array }}
+   */
+  function decodeDict(data, offset) {
+    const start = offset;
+    let pos = offset + 1;
+    const result = {};
+
+    while (pos < data.length && data[pos] !== 0x65) {
+      const keyDecoded = decodeString(data, pos);
+      const valDecoded = decode(data, keyDecoded.nextOffset);
+      result[keyDecoded.value] = valDecoded.value;
+      pos = valDecoded.nextOffset;
+    }
+
+    if (pos >= data.length) {
+      throw new Error('Bencode 字典格式错误：缺少结束标记 e');
+    }
+
+    const rawBytes = data.slice(start, pos + 1);
+    return { value: result, nextOffset: pos + 1, rawBytes };
+  }
+
+  /**
+   * 解析种子文件，返回解码后的内容
+   */
+  function parse(data) {
+    const decoded = decode(new Uint8Array(data), 0);
+    return decoded.value;
+  }
+
+  return { parse, decode, bytesToString, stringToBytes };
+})();
+/**
+ * T2M - 磁力链接生成模块
+ * 追加到 T2M 命名空间
+ */
+(function () {
+  const Bencode = window.T2M.Bencode;
+
+  /**
+   * 从种子原始字节中提取 info 字典的原始字节区间
+   * 用于后续计算 SHA-1 info hash
+   *
+   * @param {Uint8Array} data - 种子文件的原始字节
+   * @returns {Uint8Array} info 字典的原始 Bencode 字节
+   */
+  function extractInfoRawBytes(data) {
+    if (data[0] !== 0x64) {
+      throw new Error('不是有效的种子文件：顶层必须是字典');
+    }
+
+    let pos = 1;
+    while (pos < data.length && data[pos] !== 0x65) {
+      // 解析键
+      const keyResult = Bencode.decode(data, pos);
+      const key = keyResult.value;
+      pos = keyResult.nextOffset;
+
+      // 解析值
+      const valResult = Bencode.decode(data, pos);
+
+      if (key === 'info') {
+        return valResult.rawBytes;
+      }
+
+      pos = valResult.nextOffset;
+    }
+
+    throw new Error('种子文件中未找到 info 字段');
+  }
+
+  /**
+   * 将字节数组转为十六进制字符串
+   * @param {ArrayBuffer} buffer
+   * @returns {string} 小写十六进制字符串
+   */
+  function bufferToHex(buffer) {
+    const bytes = new Uint8Array(buffer);
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  /**
+   * 计算 info hash
+   * @param {Uint8Array} infoBytes - info 字典的原始 Bencode 字节
+   * @returns {Promise<string>} 40 位小写十六进制 info hash
+   */
+  async function computeInfoHash(infoBytes) {
+    const hashBuffer = await crypto.subtle.digest('SHA-1', infoBytes);
+    return bufferToHex(hashBuffer);
+  }
+
+  /**
+   * 生成磁力链接
+   * @param {string} infoHash - 40 位十六进制 info hash
+   * @param {string} name - 种子名称
+   * @param {string[]} trackers - tracker 地址列表（可选）
+   * @returns {string} 磁力链接
+   */
+  function buildMagnetLink(infoHash, name, trackers) {
+    let magnet = 'magnet:?xt=urn:btih:' + infoHash;
+    magnet += '&dn=' + encodeURIComponent(name);
+
+    if (trackers && trackers.length > 0) {
+      for (const tr of trackers) {
+        magnet += '&tr=' + encodeURIComponent(tr);
+      }
+    }
+
+    return magnet;
+  }
+
+  /**
+   * 解析单个种子文件并生成磁力链接
+   * @param {ArrayBuffer} fileData - 种子文件内容
+   * @param {string} fileName - 文件名
+   * @returns {Promise<{magnet: string, name: string, infoHash: string, trackers: string[]}>}
+   */
+  async function convertTorrent(fileData, fileName) {
+    const data = new Uint8Array(fileData);
+
+    // 解析种子文件获取结构化数据
+    const torrent = Bencode.parse(fileData);
+
+    // 提取 info 字典原始字节
+    const infoRawBytes = extractInfoRawBytes(data);
+
+    // 计算 info hash
+    const infoHash = await computeInfoHash(infoRawBytes);
+
+    // 获取名称
+    const name = (torrent.info && torrent.info.name)
+      ? torrent.info.name
+      : fileName.replace(/\.torrent$/i, '');
+
+    // 收集 tracker 地址
+    let trackers = [];
+    if (torrent['announce']) {
+      trackers.push(torrent['announce']);
+    }
+    if (Array.isArray(torrent['announce-list'])) {
+      for (const tier of torrent['announce-list']) {
+        if (Array.isArray(tier)) {
+          for (const url of tier) {
+            if (!trackers.includes(url)) {
+              trackers.push(url);
+            }
+          }
+        } else if (typeof tier === 'string') {
+          if (!trackers.includes(tier)) {
+            trackers.push(tier);
+          }
+        }
+      }
+    }
+
+    // 生成磁力链接
+    const magnet = buildMagnetLink(infoHash, name, trackers);
+
+    return { magnet, name, infoHash, trackers };
+  }
+
+  window.T2M.Magnet = { convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes };
+})();
