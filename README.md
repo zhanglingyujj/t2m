@@ -16,6 +16,8 @@
 2. 拖拽 `.torrent` 文件到虚线区域，或点击选择文件/文件夹
 3. 自动生成磁力链接列表
 4. 点击复制按钮复制单条或全部链接
+<img width="767" height="507" alt="image" src="https://github.com/user-attachments/assets/54a257de-3aa0-4b83-a6e7-dc9116b7a507" />
+
 
 ## 技术栈
 
