@@ -12,12 +12,20 @@
   const btnSelectFiles = document.getElementById('btnSelectFiles');
   const btnSelectFolder = document.getElementById('btnSelectFolder');
   const statusEl = document.getElementById('status');
-  const resultsEl = document.getElementById('results');
+const resultsEl = document.getElementById('results');
   const resultList = document.getElementById('resultList');
   const btnCopyAll = document.getElementById('btnCopyAll');
+  const chkVideoOnly = document.getElementById('chkVideoOnly');
+  const filterSummary = document.getElementById('filterSummary');
+  const filterHeaderText = document.getElementById('filterHeaderText');
+  const filterVideoExts = document.getElementById('filterVideoExts');
+  const filterNonVideoExts = document.getElementById('filterNonVideoExts');
+  const filterRegexRow = document.getElementById('filterRegexRow');
+  const filterRegex = document.getElementById('filterRegex');
+  const btnCopyRegex = document.getElementById('btnCopyRegex');
 
   // ===== 状态 =====
-  let magnetResults = [];
+let allTorrentResults = [];
 
   // ===== 工具函数 =====
   function showStatus(message, type) {
@@ -102,7 +110,7 @@
     await navigator.clipboard.writeText(text);
   }
 
-  // ===== 核心：处理文件列表 =====
+// ===== 核心：处理文件列表 =====
   async function processFiles(files) {
     const torrentFiles = Array.from(files).filter(isTorrentFile);
 
@@ -111,9 +119,9 @@
       return;
     }
 
-    // 重置状态
-    magnetResults = [];
+    allTorrentResults = [];
     hideResults();
+    hideFilterSummary();
     resultList.innerHTML = '';
     showStatus('正在处理 ' + torrentFiles.length + ' 个种子文件...', 'loading');
     dropZone.classList.add('processing');
@@ -125,7 +133,7 @@
       try {
         const fileData = await readFileAsArrayBuffer(file);
         const result = await window.T2M.Magnet.convertTorrent(fileData, file.name);
-        magnetResults.push(result);
+        allTorrentResults.push(result);
         successCount++;
       } catch (err) {
         errors.push({ name: file.name, error: err.message });
@@ -134,28 +142,12 @@
 
     dropZone.classList.remove('processing');
 
-    // 渲染结果
-    if (magnetResults.length > 0) {
-      for (let i = 0; i < magnetResults.length; i++) {
-        resultList.appendChild(renderResultItem(magnetResults[i], i));
-      }
-      showResults();
-      showStatus(
-        '成功转换 ' + successCount + ' / ' + torrentFiles.length + ' 个种子文件',
-        'loading'
-      );
-
-      // 绑定复制按钮
-      bindCopyButtons();
-    } else {
-      hideResults();
-    }
+    renderFilteredResults();
 
     if (errors.length > 0) {
       const errorMsg = errors.map(e => e.name + ': ' + e.error).join('; ');
       showStatus('部分文件转换失败: ' + errorMsg, 'error');
-    } else if (magnetResults.length > 0) {
-      // 1.5 秒后隐藏成功状态
+    } else if (allTorrentResults.length > 0) {
       setTimeout(() => {
         if (statusEl.textContent.includes('成功转换')) {
           hideStatus();
@@ -163,6 +155,131 @@
       }, 2000);
     }
   }
+
+  /**
+   * 根据当前复选框状态渲染结果列表和过滤摘要
+   */
+  function renderFilteredResults() {
+    const showVideoOnly = chkVideoOnly.checked;
+    const Magnet = window.T2M.Magnet;
+
+    let filtered = allTorrentResults;
+    let excluded = [];
+
+    if (showVideoOnly) {
+      for (const r of allTorrentResults) {
+        if (!Magnet.hasVideoFiles(r.info)) {
+          excluded.push(r);
+        }
+      }
+      filtered = allTorrentResults.filter(r => Magnet.hasVideoFiles(r.info));
+    }
+
+    resultList.innerHTML = '';
+    if (filtered.length > 0) {
+      for (let i = 0; i < filtered.length; i++) {
+        resultList.appendChild(renderResultItem(filtered[i], i));
+      }
+      showResults();
+      showStatus(
+        '成功转换 ' + allTorrentResults.length + ' 个种子文件' +
+        (excluded.length > 0 ? '，已过滤 ' + excluded.length + ' 个非视频种子' : ''),
+        'loading'
+      );
+      bindCopyButtons(filtered);
+    } else {
+      hideResults();
+      if (allTorrentResults.length > 0) {
+        showStatus(
+          '已转换 ' + allTorrentResults.length + ' 个种子，但全部不含视频文件，已过滤',
+          'error'
+        );
+      } else {
+        hideStatus();
+      }
+    }
+
+    if (showVideoOnly) {
+      renderFilterSummary(allTorrentResults, excluded);
+    } else {
+      hideFilterSummary();
+    }
+  }
+
+  /**
+   * 收集所有种子的文件后缀，分为视频和非视频
+   */
+  function collectAllExtensions(results) {
+    const Magnet = window.T2M.Magnet;
+    const videoExts = new Set();
+    const nonVideoExts = new Set();
+
+    for (const r of results) {
+      const exts = Magnet.getFileExtensions(r.info);
+      for (const ext of exts) {
+        if (Magnet.VIDEO_EXTENSIONS.has(ext)) {
+          videoExts.add(ext);
+        } else {
+          nonVideoExts.add(ext);
+        }
+      }
+    }
+
+    return {
+      video: Array.from(videoExts).sort(),
+      nonVideo: Array.from(nonVideoExts).sort()
+    };
+  }
+
+  /**
+   * 渲染过滤摘要（仅在复选框勾选时调用）
+   */
+  function renderFilterSummary(all, excluded) {
+    const { video, nonVideo } = collectAllExtensions(all);
+
+    if (excluded.length > 0) {
+      filterHeaderText.textContent = '已过滤 ' + excluded.length + ' 个非视频种子';
+      filterHeaderText.className = '';
+    } else {
+      filterHeaderText.textContent = '所有种子均含视频 \u2713';
+      filterHeaderText.className = 'all-video';
+    }
+
+    filterVideoExts.innerHTML = video.length > 0
+      ? video.map(e => '<code class="ext-tag ext-video" data-ext="' + e + '">' + e + '</code>').join('')
+      : '(无)';
+    filterNonVideoExts.innerHTML = nonVideo.length > 0
+      ? nonVideo.map(e => '<code class="ext-tag ext-nonvideo" data-ext="' + e + '">' + e + '</code>').join('')
+      : '(无)';
+
+    if (nonVideo.length > 0) {
+      const escaped = nonVideo.map(e => e.replace(/\./g, '\\.'));
+      filterRegex.textContent = '\\.(' + escaped.map(e => e.substring(2)).join('|') + ')$';
+      filterRegexRow.classList.remove('hidden');
+    } else {
+      filterRegexRow.classList.add('hidden');
+    }
+
+    filterSummary.classList.remove('hidden');
+  }
+
+  function hideFilterSummary() {
+    filterSummary.classList.add('hidden');
+  }
+
+  /**
+   * 为后缀标签绑定点击复制 (event delegation)
+   */
+  filterSummary.addEventListener('click', async (e) => {
+    const tag = e.target.closest('.ext-tag');
+    if (!tag) return;
+    const ext = tag.dataset.ext;
+    try {
+      await copyToClipboard(ext);
+      tag.classList.add('copied');
+      setTimeout(() => tag.classList.remove('copied'), 1500);
+    } catch {}
+  });
 
   /**
    * 读取文件为 ArrayBuffer
@@ -176,13 +293,13 @@
     });
   }
 
-  // ===== 复制功能 =====
-  function bindCopyButtons() {
+// ===== 复制功能 =====
+  function bindCopyButtons(magnets) {
     const buttons = resultList.querySelectorAll('.btn-copy');
     buttons.forEach(btn => {
       btn.addEventListener('click', async function () {
         const index = parseInt(this.dataset.index);
-        const magnet = magnetResults[index].magnet;
+        const magnet = magnets[index].magnet;
         try {
           await copyToClipboard(magnet);
           this.textContent = '已复制 ✓';
@@ -201,16 +318,21 @@
     });
   }
 
-  /**
+/**
    * 一键复制全部
    */
   async function copyAll() {
-    if (magnetResults.length === 0) return;
-    const allMagnets = magnetResults.map(r => r.magnet).join('\n');
+    const showVideoOnly = chkVideoOnly.checked;
+    const Magnet = window.T2M.Magnet;
+    const magnets = showVideoOnly
+      ? allTorrentResults.filter(r => Magnet.hasVideoFiles(r.info))
+      : allTorrentResults;
+    if (magnets.length === 0) return;
+    const allMagnets = magnets.map(r => r.magnet).join('\n');
     try {
       await copyToClipboard(allMagnets);
       const originalText = btnCopyAll.innerHTML;
-      btnCopyAll.innerHTML = '已复制 ✓ (' + magnetResults.length + ' 条)';
+      btnCopyAll.innerHTML = '已复制 ✓ (' + magnets.length + ' 条)';
       setTimeout(() => {
         btnCopyAll.innerHTML = originalText;
       }, 2000);
@@ -300,8 +422,35 @@
     }
   });
 
-  // 一键复制全部
+// 一键复制全部
   btnCopyAll.addEventListener('click', copyAll);
+
+  // 复选框切换
+  chkVideoOnly.addEventListener('change', () => {
+    if (allTorrentResults.length > 0) {
+      renderFilteredResults();
+    }
+  });
+
+  // 复制正则表达式
+  btnCopyRegex.addEventListener('click', async () => {
+    const regex = filterRegex.textContent;
+    if (!regex) return;
+    try {
+      await copyToClipboard(regex);
+      btnCopyRegex.textContent = '已复制 ✓';
+      btnCopyRegex.classList.add('copied');
+      setTimeout(() => {
+        btnCopyRegex.textContent = '复制';
+        btnCopyRegex.classList.remove('copied');
+      }, 2000);
+    } catch {
+      btnCopyRegex.textContent = '复制失败';
+      setTimeout(() => {
+        btnCopyRegex.textContent = '复制';
+      }, 2000);
+    }
+  });
 
   // 全局粘贴事件：支持 Ctrl+V 粘贴种子文件
   document.addEventListener('paste', (e) => {

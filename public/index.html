@@ -42,12 +42,36 @@
           </button>
         </div>
 
-        <input type="file" id="fileInput" accept=".torrent" multiple hidden>
+<input type="file" id="fileInput" accept=".torrent" multiple hidden>
         <input type="file" id="folderInput" webkitdirectory hidden>
+
+        <div class="filter-option">
+          <label class="filter-label">
+            <input type="checkbox" id="chkVideoOnly" checked>
+            <span>仅显示包含视频的磁力链接</span>
+          </label>
+        </div>
       </div>
 
-      <!-- 状态提示 -->
+<!-- 状态提示 -->
       <div id="status" class="status hidden"></div>
+
+      <!-- 过滤摘要 -->
+      <div id="filterSummary" class="filter-summary hidden">
+        <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
+        <div class="exts-row">
+          <span class="exts-label">视频后缀：</span>
+          <span id="filterVideoExts" class="exts-tags"></span>
+        </div>
+        <div class="exts-row">
+          <span class="exts-label">非视频后缀：</span>
+          <span id="filterNonVideoExts" class="exts-tags"></span>
+        </div>
+        <div id="filterRegexRow" class="filter-summary-regex hidden">
+          非视频后缀正则: <code id="filterRegex"></code>
+          <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
+        </div>
+      </div>
 
       <!-- 结果列表 -->
       <div id="results" class="results hidden">
@@ -60,8 +84,8 @@
             </svg>
             一键复制全部
           </button>
-        </div>
-        <ul id="resultList" class="result-list"></ul>
+</div>
+<ul id="resultList" class="result-list"></ul>
       </div>
     </main>
 

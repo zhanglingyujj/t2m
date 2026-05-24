@@ -242,11 +242,66 @@ window.T2M.Bencode = (function () {
     return magnet;
   }
 
+/**
+   * 视频文件扩展名白名单
+   */
+  const VIDEO_EXTENSIONS = new Set([
+    '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.ts'
+  ]);
+
+  /**
+   * 判断扩展名是否为视频格式
+   */
+  function isVideoExtension(ext) {
+    return VIDEO_EXTENSIONS.has(ext.toLowerCase());
+  }
+
+  /**
+   * 获取种子的所有文件扩展名（单文件或多文件）
+   * @param {object} info - 种子的 info 字典
+   * @returns {string[]} 扩展名数组（含点号，如 ".mp4"）
+   */
+  function getFileExtensions(info) {
+    if (!info) return [];
+
+    if (info.files && Array.isArray(info.files)) {
+      const exts = new Set();
+      for (const file of info.files) {
+        if (file.path && file.path.length > 0) {
+          const lastSegment = file.path[file.path.length - 1];
+          const dotIndex = lastSegment.lastIndexOf('.');
+          if (dotIndex >= 0 && dotIndex < lastSegment.length - 1) {
+            exts.add(lastSegment.substring(dotIndex).toLowerCase());
+          }
+        }
+      }
+      return Array.from(exts);
+    }
+
+    if (info.name) {
+      const dotIndex = info.name.lastIndexOf('.');
+      if (dotIndex >= 0 && dotIndex < info.name.length - 1) {
+        return [info.name.substring(dotIndex).toLowerCase()];
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * 判断种子是否包含视频文件
+   * @param {object} info - 种子的 info 字典
+   * @returns {boolean}
+   */
+  function hasVideoFiles(info) {
+    return getFileExtensions(info).some(isVideoExtension);
+  }
+
   /**
    * 解析单个种子文件并生成磁力链接
    * @param {ArrayBuffer} fileData - 种子文件内容
    * @param {string} fileName - 文件名
-   * @returns {Promise<{magnet: string, name: string, infoHash: string, trackers: string[]}>}
+   * @returns {Promise<{magnet: string, name: string, infoHash: string, trackers: string[], info: object}>}
    */
   async function convertTorrent(fileData, fileName) {
     const data = new Uint8Array(fileData);
@@ -289,8 +344,11 @@ window.T2M.Bencode = (function () {
     // 生成磁力链接
     const magnet = buildMagnetLink(infoHash, name, trackers);
 
-    return { magnet, name, infoHash, trackers };
+return { magnet, name, infoHash, trackers, info: torrent.info };
   }
 
-  window.T2M.Magnet = { convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes };
+  window.T2M.Magnet = {
+    convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
+    hasVideoFiles, getFileExtensions, VIDEO_EXTENSIONS
+  };
 })();
