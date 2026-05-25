@@ -5,3 +5,13 @@ compatibility_date = "2024-01-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "t2m-db"
+database_id = "c7cac5f3-8133-4c7e-bb94-17ee2aea7aea"
+
+[vars]
+ADMIN_USERNAME = ""
+ADMIN_PASSWORD = ""
+JWT_SECRET = ""
