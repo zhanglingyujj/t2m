@@ -92,3 +92,17 @@ npx wrangler deploy
 - 依赖 Web Crypto API（`crypto.subtle.digest`），所有现代浏览器均支持
 - 依赖 `webkitdirectory` 属性实现文件夹选择（Chrome/Edge 原生支持，Firefox 不支持）
 - 拖拽文件夹依赖 `DataTransferItem.webkitGetAsEntry()`（Chrome/Edge）
+
+## Agent skills
+
+### Issue tracker
+
+Issues 跟踪在本仓库的 GitHub Issues（zhanglingyujj/t2m），通过 `gh` CLI 操作。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+使用五个默认 triage 标签（`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`），与 skill 内名称一致。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+单上下文布局：根级 `CONTEXT.md` + `docs/adr/`。See `docs/agents/domain.md`.
