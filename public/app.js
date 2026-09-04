@@ -19,6 +19,7 @@
   const resultList = document.getElementById('resultList');
   const btnCopyAll = document.getElementById('btnCopyAll');
   const chkVideoOnly = document.getElementById('chkVideoOnly');
+  const chkInjectTrackers = document.getElementById('chkInjectTrackers');
   const filterSummary = document.getElementById('filterSummary');
   const filterHeaderText = document.getElementById('filterHeaderText');
   const filterVideoExts = document.getElementById('filterVideoExts');
@@ -46,6 +47,9 @@
   const drawerName = document.getElementById('drawerName');
   const drawerSize = document.getElementById('drawerSize');
   const drawerFileCount = document.getElementById('drawerFileCount');
+  const drawerCreationDate = document.getElementById('drawerCreationDate');
+  const drawerTrackerTitle = document.getElementById('drawerTrackerTitle');
+  const drawerTrackers = document.getElementById('drawerTrackers');
   const drawerFiles = document.getElementById('drawerFiles');
   const drawerHash = document.getElementById('drawerHash');
   const btnDrawerCopyHash = document.getElementById('btnDrawerCopyHash');
@@ -103,6 +107,18 @@
     const days = Math.floor(hours / 24);
     if (days < 30) return days + ' 天前';
     return then.toLocaleDateString('zh-CN');
+  }
+
+  /**
+   * 按当前注入开关拼接磁力链接
+   * @param {{infoHash: string, name: string, trackers: string[]}} result
+   * @returns {string}
+   */
+  function composeMagnet(result) {
+    const trackers = chkInjectTrackers.checked
+      ? window.T2M.Magnet.injectPublicTrackers(result.trackers)
+      : result.trackers;
+    return window.T2M.Magnet.buildMagnetLink(result.infoHash, result.name, trackers);
   }
 
   /**
@@ -426,6 +442,7 @@
         const fileData = await readFileAsArrayBuffer(file);
         const result = await window.T2M.Magnet.convertTorrent(fileData, file.name);
         result.fileList = extractFileList(result.info);
+        result.magnet = composeMagnet(result);
         allTorrentResults.push(result);
         successCount++;
       } catch (err) {
@@ -557,7 +574,7 @@
       btn.addEventListener('click', async function (e) {
         e.stopPropagation();
         const index = parseInt(this.dataset.index);
-        const magnet = magnets[index].magnet;
+        const magnet = composeMagnet(magnets[index]);
         try {
           await copyToClipboard(magnet);
           this.textContent = '已复制';
@@ -585,6 +602,21 @@
     drawerName.textContent = result.name;
     drawerSize.textContent = formatSize(getTotalSize(fileList));
     drawerFileCount.textContent = fileList.length + ' 个';
+    drawerCreationDate.textContent = window.T2M.Magnet.formatCreationDate(result.creationDate);
+
+    const trackers = chkInjectTrackers.checked
+      ? window.T2M.Magnet.injectPublicTrackers(result.trackers)
+      : result.trackers;
+    drawerTrackerTitle.textContent = chkInjectTrackers.checked
+      ? 'Tracker（' + (result.trackers || []).length + ' + 注入 ' + (trackers.length - (result.trackers || []).length) + '）'
+      : 'Tracker（' + (result.trackers || []).length + '）';
+    drawerTrackers.innerHTML = trackers.length > 0
+      ? trackers.map(function (tr) {
+          const injected = !(result.trackers || []).includes(tr);
+          return '<span class="tracker-tag' + (injected ? ' tracker-injected' : '') + '">' + escapeHTML(tr) + '</span>';
+        }).join('')
+      : '<span class="tracker-empty">（无）</span>';
+
     drawerFiles.innerHTML = fileList.length > 0
       ? fileList.map(function (f) {
           return '<li class="drawer-file-item">' +
@@ -594,7 +626,7 @@
         }).join('')
       : '<li class="drawer-file-item"><span class="drawer-file-path">（无文件信息）</span></li>';
     drawerHash.textContent = result.infoHash;
-    drawerMagnet.textContent = result.magnet;
+    drawerMagnet.textContent = composeMagnet(result);
 
     drawer.classList.remove('hidden');
     drawerMask.classList.remove('hidden');
@@ -617,7 +649,7 @@
   btnDrawerCopyMagnet.addEventListener('click', async function () {
     if (!drawerResult) return;
     try {
-      await copyToClipboard(drawerResult.magnet);
+      await copyToClipboard(composeMagnet(drawerResult));
       this.textContent = '已复制';
       setTimeout(function () { btnDrawerCopyMagnet.textContent = '复制磁力链接'; }, 2000);
     } catch (err) {
@@ -650,7 +682,7 @@
       ? allTorrentResults.filter(function (r) { return Magnet.hasVideoFiles(r.info); })
       : allTorrentResults;
     if (magnets.length === 0) return;
-    const allMagnets = magnets.map(function (r) { return r.magnet; }).join('\n');
+    const allMagnets = magnets.map(function (r) { return composeMagnet(r); }).join('\n');
     try {
       await copyToClipboard(allMagnets);
       const originalHTML = btnCopyAll.innerHTML;
@@ -788,6 +820,15 @@
   // 视频过滤复选框
   chkVideoOnly.addEventListener('change', function () {
     if (allTorrentResults.length > 0) renderFilteredResults();
+  });
+
+  // tracker 注入复选框：即时重新拼接磁力链接
+  chkInjectTrackers.addEventListener('change', function () {
+    for (var i = 0; i < allTorrentResults.length; i++) {
+      allTorrentResults[i].magnet = composeMagnet(allTorrentResults[i]);
+    }
+    if (allTorrentResults.length > 0) renderFilteredResults();
+    if (drawerResult) openDrawer(drawerResult);
   });
 
   // 过滤摘要事件

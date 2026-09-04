@@ -243,6 +243,63 @@ window.T2M.Bencode = (function () {
   }
 
 /**
+   * 公共 tracker 列表（约 20 个）
+   * 来源：ngosang/trackerslist trackers_best.txt，快照 2026-09
+   * https://github.com/ngosang/trackerslist
+   */
+  const PUBLIC_TRACKERS = [
+    'udp://zer0day.ch:1337/announce',
+    'udp://tracker.therarbg.to:6969/announce',
+    'udp://tracker.publictracker.xyz:6969/announce',
+    'udp://tracker.opentrackr.org:1337/announce',
+    'udp://open.demonii.com:1337/announce',
+    'udp://open.stealth.si:80/announce',
+    'udp://tracker.torrent.eu.org:451/announce',
+    'udp://tracker.qu.ax:6969/announce',
+    'udp://tracker.peerfect.org:6969/announce',
+    'udp://tracker.opentrackr.com:6969/announce',
+    'udp://tracker.ilibr.org:6969/announce',
+    'udp://tracker.farted.net:6969/announce',
+    'udp://tracker.dler.org:6969/announce',
+    'udp://tracker.corpscorp.online:80/announce',
+    'udp://tracker.bittor.pw:1337/announce',
+    'udp://tracker.auctor.tv:6969/announce',
+    'udp://tracker.0x7c0.com:6969/announce',
+    'udp://t.overflow.biz:6969/announce',
+    'udp://retracker01-msk-virt.corbina.net:80/announce',
+    'udp://mail.segso.net:6969/announce'
+  ];
+
+  /**
+   * 合并种子自带 tracker 与公共 tracker（去重，公共追加在后）
+   * @param {string[]} trackers - 种子自带 tracker 列表
+   * @returns {string[]}
+   */
+  function injectPublicTrackers(trackers) {
+    const seen = new Set(trackers || []);
+    const merged = (trackers || []).slice();
+    for (const tr of PUBLIC_TRACKERS) {
+      if (!seen.has(tr)) {
+        seen.add(tr);
+        merged.push(tr);
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * 格式化种子创建日期
+   * @param {number} timestamp - Unix 时间戳（秒），可为 null/undefined
+   * @returns {string} 本地化日期，缺失时返回 '—'
+   */
+  function formatCreationDate(timestamp) {
+    if (timestamp == null || isNaN(timestamp)) return '—';
+    return new Date(timestamp * 1000).toLocaleDateString('zh-CN', {
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    });
+  }
+
+  /**
    * 视频文件扩展名白名单
    */
   const VIDEO_EXTENSIONS = new Set([
@@ -344,11 +401,17 @@ window.T2M.Bencode = (function () {
     // 生成磁力链接
     const magnet = buildMagnetLink(infoHash, name, trackers);
 
-return { magnet, name, infoHash, trackers, info: torrent.info };
+    // 创建日期（顶层字段，Unix 秒）
+    const creationDate = typeof torrent['creation date'] === 'number'
+      ? torrent['creation date']
+      : null;
+
+    return { magnet, name, infoHash, trackers, creationDate, info: torrent.info };
   }
 
   window.T2M.Magnet = {
     convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
-    hasVideoFiles, getFileExtensions, VIDEO_EXTENSIONS
+    hasVideoFiles, getFileExtensions, isVideoExtension,
+    PUBLIC_TRACKERS, injectPublicTrackers, formatCreationDate, VIDEO_EXTENSIONS
   };
 })();

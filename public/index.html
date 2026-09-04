@@ -73,6 +73,10 @@
             <input type="checkbox" id="chkVideoOnly" checked>
             <span>仅显示包含视频的磁力链接</span>
           </label>
+          <label class="filter-label">
+            <input type="checkbox" id="chkInjectTrackers" checked>
+            <span>注入公共 tracker</span>
+          </label>
         </div>
 
         <div class="opt-section">
@@ -167,7 +171,10 @@
       <dl class="drawer-kv">
         <dt>总大小</dt><dd id="drawerSize"></dd>
         <dt>文件数</dt><dd id="drawerFileCount"></dd>
+        <dt>创建日期</dt><dd id="drawerCreationDate"></dd>
       </dl>
+      <div class="drawer-section-title" id="drawerTrackerTitle">Tracker</div>
+      <div class="drawer-trackers" id="drawerTrackers"></div>
       <div class="drawer-section-title">文件列表</div>
       <ul class="drawer-files" id="drawerFiles"></ul>
       <div class="drawer-section-title">info_hash</div>
