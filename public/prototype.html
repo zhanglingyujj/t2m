@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T2M · UI 原型（PROTOTYPE，评审用，废弃代码）</title>
+<style>
+/* ============================================================
+ * PROTOTYPE — 可点击 UI 原型，评审用，定稿后整体丢弃
+ * 问题：新 UI（功能清单定稿 #4 之后）应该长什么样？
+ * 三个结构上不同的变体，经 ?variant= 切换，底部悬浮栏循环
+ * ============================================================ */
+:root {
+  --bg: #080b12;
+  --surface: #111827;
+  --surface-2: #0d1420;
+  --border: #1e293b;
+  --border-hi: #334155;
+  --primary: #6366f1;
+  --accent: #06b6d4;
+  --text: #f1f5f9;
+  --text-2: #94a3b8;
+  --muted: #475569;
+  --ok: #22c55e;
+  --err: #ef4444;
+  --grad: linear-gradient(135deg, var(--primary), var(--accent));
+  --r: 14px;
+  --rs: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; line-height: 1.6; padding-bottom: 90px;
+}
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; }
+code, .mono { font-family: "SF Mono", Consolas, monospace; }
+
+/* ===== 原型控制层（不属于被评审的设计）===== */
+.proto-controls {
+  position: fixed; top: 12px; left: 12px; z-index: 300;
+  display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 24px);
+}
+.proto-pill {
+  background: #000; border: 1px solid var(--border-hi); color: var(--text-2);
+  border-radius: 999px; padding: 4px 12px; font-size: 12px; display: inline-flex;
+  align-items: center; gap: 6px; user-select: none;
+}
+.proto-pill button {
+  background: none; border: none; color: var(--text-2); font-size: 12px;
+  padding: 2px 6px; border-radius: 999px;
+}
+.proto-pill button.on { background: var(--primary); color: #fff; }
+.proto-switcher {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 300; display: flex; align-items: center; gap: 4px;
+  background: #000; border: 2px solid var(--primary); border-radius: 999px;
+  padding: 6px 10px; box-shadow: 0 10px 40px rgba(99,102,241,.35);
+}
+.proto-switcher button {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: var(--primary); color: #fff; font-size: 15px; line-height: 1;
+}
+.proto-switcher .label { font-size: 13px; font-weight: 600; padding: 0 10px; white-space: nowrap; }
+.proto-banner {
+  text-align: center; font-size: 11px; color: var(--muted); padding: 6px 12px 0;
+  letter-spacing: .05em;
+}
+
+/* ===== 手机预览框架 ===== */
+.stage { padding: 20px; display: flex; justify-content: center; }
+.stage.mobile { padding: 20px 8px; }
+.phone-frame { width: 100%; max-width: 100%; }
+.stage.mobile .phone-frame { max-width: 390px; border: 1px solid var(--border-hi); border-radius: 22px; overflow: hidden; background: var(--bg); }
+
+/* ===== 公共小组件（变体间允许共享的是原子，不是布局）===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 48px; padding: 10px 20px; border: none; border-radius: var(--rs);
+  font-size: .9rem; font-weight: 500;
+}
+.btn-primary { background: var(--grad); color: #fff; }
+.btn-ghost { background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--border); }
+.btn-sm { min-height: 36px; padding: 6px 14px; font-size: .8rem; }
+.tag {
+  display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: .78rem;
+  border: 1px solid var(--border); color: var(--text-2);
+}
+.tag.video { border-color: rgba(34,197,94,.4); color: var(--ok); }
+.checkline { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text-2); cursor: pointer; }
+.checkline input { width: 17px; height: 17px; accent-color: var(--primary); }
+.kv { display: flex; gap: 8px; font-size: .8rem; }
+.kv dt { color: var(--muted); flex-shrink: 0; }
+.kv dd { color: var(--text-2); word-break: break-all; }
+.fade-in { animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
+
+/* 状态徽标 */
+.state-note {
+  position: fixed; top: 12px; right: 12px; z-index: 300;
+  background: rgba(239,68,68,.15); border: 1px solid var(--err); color: #f87171;
+  border-radius: 999px; padding: 4px 12px; font-size: 12px;
+}
+
+/* ============================================================
+ * 变体 A —— 单列流（现结构演进）
+ * 布局：居中单列；dropzone 英雄区在上，结果列表在下，
+ * 结果项内联展开详情。移动端自然堆叠。
+ * ============================================================ */
+.va-wrap { max-width: 720px; margin: 0 auto; }
+.va-topbar { display: flex; justify-content: space-between; align-items: center; margin: 16px 4px 28px; }
+.va-logo { font-size: 1.5rem; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.va-login { font-size: .85rem; color: var(--text-2); border: 1px solid var(--border); border-radius: var(--rs); padding: 8px 16px; background: none; }
+.va-drop {
+  border: 2px dashed var(--border); border-radius: var(--r); padding: 46px 24px 34px;
+  text-align: center; background: rgba(17,24,39,.9); transition: .2s;
+}
+.va-drop.over { border-color: var(--primary); border-style: solid; box-shadow: 0 0 30px rgba(99,102,241,.18); }
+.va-drop .icon { font-size: 44px; margin-bottom: 12px; }
+.va-drop h1 { font-size: 1.15rem; font-weight: 600; margin-bottom: 4px; }
+.va-drop p { font-size: .85rem; color: var(--muted); margin-bottom: 20px; }
+.va-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.va-options {
+  display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+  margin: 16px 4px 0; font-size: .85rem; color: var(--text-2);
+}
+.va-status { margin: 16px 4px; padding: 12px 16px; border-radius: var(--rs); font-size: .9rem; text-align: center; background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); color: var(--primary); }
+.va-status.error { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.25); color: var(--err); }
+.va-status .bar { height: 3px; background: rgba(99,102,241,.15); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.va-status .bar i { display: block; height: 100%; width: 40%; background: var(--grad); animation: slide 1.2s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%);} to { transform: translateX(350%);} }
+.va-results h2 { font-size: 1.02rem; margin: 24px 4px 12px; display: flex; justify-content: space-between; align-items: center; }
+.va-card {
+  background: rgba(17,24,39,.92); border: 1px solid var(--border); border-radius: var(--rs);
+  margin-bottom: 10px; overflow: hidden;
+}
+.va-card .row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; }
+.va-card .info { flex: 1; min-width: 0; }
+.va-card .name { font-size: .92rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-card .meta { font-size: .78rem; color: var(--muted); }
+.va-card .acts { display: flex; gap: 6px; flex-shrink: 0; }
+.va-card .detail { border-top: 1px solid var(--border); background: rgba(0,0,0,.18); padding: 14px 16px; }
+.va-files { list-style: none; max-height: 200px; overflow: auto; }
+.va-files li { display: flex; justify-content: space-between; gap: 12px; font-size: .8rem; color: var(--text-2); padding: 4px 6px; border-radius: 6px; }
+.va-files li:hover { background: rgba(255,255,255,.03); }
+.va-files .path { word-break: break-all; }
+.va-files .sz { color: var(--muted); flex-shrink: 0; }
+.va-tr { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.va-tr .tag { color: var(--accent); border-color: rgba(6,182,212,.35); }
+.va-hash { font-size: .72rem; color: var(--muted); }
+.stage.mobile .va-card .acts { flex-direction: column; }
+
+/* ============================================================
+ * 变体 B —— 双栏工作台
+ * 布局：桌面左栏（输入+选项，sticky）右栏（结果区常驻，含空态占位），
+ * 结果为紧凑行式。移动端顶部页签切换「转换 / 结果」。
+ * ============================================================ */
+.vb-tabs { display: none; }
+.vb-wrap { display: grid; grid-template-columns: 340px 1fr; gap: 24px; max-width: 980px; margin: 0 auto; padding-top: 16px; }
+.vb-col-l { position: sticky; top: 76px; align-self: start; }
+.vb-panel { background: rgba(17,24,39,.92); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; }
+.vb-panel h1 { font-size: 1.1rem; margin-bottom: 14px; }
+.vb-logo { font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 18px; font-size: 1.3rem; }
+.vb-mini-drop {
+  border: 2px dashed var(--border); border-radius: var(--rs); padding: 26px 14px;
+  text-align: center; color: var(--text-2); font-size: .88rem; margin-bottom: 14px;
+}
+.vb-mini-drop.over { border-color: var(--primary); color: var(--primary); border-style: solid; }
+.vb-opt-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
+.vb-opt-group { display: flex; flex-direction: column; gap: 10px; }
+.vb-col-r h2 { font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.vb-empty { border: 1px dashed var(--border); border-radius: var(--r); padding: 60px 20px; text-align: center; color: var(--muted); font-size: .88rem; }
+.vb-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: rgba(17,24,39,.92); border: 1px solid var(--border); border-radius: var(--rs);
+  margin-bottom: 8px; cursor: pointer;
+}
+.vb-row:hover { border-color: var(--border-hi); }
+.vb-row .n { font-size: .88rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb-row .m { font-size: .76rem; color: var(--muted); }
+.vb-row .h { font-size: .72rem; color: var(--muted); font-family: "SF Mono", Consolas, monospace; }
+.vb-row .acts { display: flex; gap: 6px; flex-shrink: 0; }
+.vb-modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 250; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.vb-modal { width: 100%; max-width: 560px; max-height: 80vh; overflow: auto; background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--r); padding: 24px; }
+.vb-modal h3 { margin-bottom: 12px; font-size: 1rem; word-break: break-all; }
+.vb-modal .close { float: right; background: none; border: none; color: var(--muted); font-size: 1.1rem; }
+@media (max-width: 760px) {
+  .vb-tabs {
+    display: flex; max-width: 980px; margin: 16px auto 0; border: 1px solid var(--border);
+    border-radius: var(--rs); overflow: hidden; position: sticky; top: 56px; z-index: 50;
+  }
+  .vb-tabs button { flex: 1; min-height: 44px; border: none; background: var(--surface-2); color: var(--text-2); font-size: .88rem; }
+  .vb-tabs button.on { background: rgba(99,102,241,.15); color: var(--primary); font-weight: 600; }
+  .vb-wrap { grid-template-columns: 1fr; padding-top: 8px; }
+  .vb-col-l { position: static; }
+  .vb-col-l.off, .vb-col-r.off { display: none; }
+}
+
+/* ============================================================
+ * 变体 C —— 抽屉详情
+ * 布局：全宽居中结果列表，行即摘要；点击行从右侧滑出抽屉
+ * 展示完整种子详情与全部操作；移动端抽屉变成底部弹层。
+ * ============================================================ */
+.vc-wrap { max-width: 640px; margin: 0 auto; }
+.vc-hero { text-align: center; padding: 40px 16px 28px; }
+.vc-hero .logo { font-size: 2rem; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+.vc-hero p { color: var(--muted); font-size: .88rem; margin-bottom: 20px; }
+.vc-hero .btn { margin: 0 6px 10px; }
+.vc-list { list-style: none; }
+.vc-item {
+  display: flex; align-items: center; gap: 12px; padding: 16px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.vc-item:first-child { border-top: 1px solid var(--border); }
+.vc-item:hover { background: rgba(255,255,255,.02); }
+.vc-item .badge {
+  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  background: rgba(99,102,241,.12); color: var(--primary);
+}
+.vc-item .info { flex: 1; min-width: 0; }
+.vc-item .n { font-size: .92rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-item .m { font-size: .78rem; color: var(--muted); }
+.vc-item .chev { color: var(--muted); flex-shrink: 0; }
+.vc-drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; }
+.vc-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw;
+  background: var(--surface); border-left: 1px solid var(--border-hi);
+  z-index: 201; overflow-y: auto; padding: 24px; animation: drawerIn .22s ease;
+}
+@keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.vc-drawer h3 { font-size: 1rem; word-break: break-all; margin-bottom: 14px; }
+.vc-drawer .close { background: none; border: none; color: var(--muted); font-size: 1.1rem; float: right; }
+.vc-sec { margin-bottom: 20px; }
+.vc-sec h4 { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+.vc-drawer .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+.vc-drawer .acts .btn { flex: 1; min-width: 110px; }
+@media (max-width: 600px) {
+  .vc-drawer {
+    top: auto; left: 0; width: 100%; max-width: none; border-left: none;
+    border-top: 1px solid var(--border-hi); border-radius: 18px 18px 0 0;
+    max-height: 82vh; animation: sheetUp .22s ease;
+  }
+  @keyframes sheetUp { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+</style>
+</head>
+<body>
+
+<div class="proto-controls">
+  <div class="proto-pill" id="statePill">
+    状态：
+    <button data-s="empty">空态</button><button data-s="drag">拖拽中</button><button data-s="parsing">解析中</button><button data-s="results">结果</button><button data-s="error">错误</button>
+  </div>
+  <div class="proto-pill">
+    <button id="btnMobile">📱 手机宽度</button>
+  </div>
+</div>
+<div class="state-note" id="stateNote"></div>
+<div class="proto-banner">PROTOTYPE · 评审用可丢弃代码 · ←/→ 切换变体</div>
+
+<div class="stage" id="stage"><div class="phone-frame" id="app"></div></div>
+
+<div class="proto-switcher" id="switcher">
+  <button id="prev" title="上一个变体">←</button>
+  <span class="label" id="variantLabel"></span>
+  <button id="next" title="下一个变体">→</button>
+</div>
+
+<script>
+'use strict';
+/* ---- 假数据 ---- */
+const MOCK = [
+  {
+    name: 'Big.Buck.Bunny.2008.1080p.BluRay.x264',
+    size: '8.2 GB', fileCount: 3, date: '2008-04-10',
+    hash: 'dd8255ecdc7ca55fb1bb7b10d7f6809e7a19a98b',
+    video: true,
+    magnet: 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb1bb7b10d7f6809e7a19a98b&dn=Big.Buck.Bunny.2008.1080p.BluRay.x264',
+    files: [
+      ['Big.Buck.Bunny.2008.1080p.BluRay.x264.mkv', '7.9 GB'],
+      ['Sample/sample.mkv', '245.0 MB'],
+      ['说明.txt', '1.2 KB'],
+    ],
+    trackers: ['udp://tracker.opentrackr.org:1337', 'udp://open.tracker.cl:1337', 'https://tr.burnabyhighstar.com/announce'],
+  },
+  {
+    name: 'ubuntu-24.04.2-desktop-amd64.iso',
+    size: '6.1 GB', fileCount: 1, date: '2025-01-15',
+    hash: '9f8a1c6db5e30d0d2e4a7b3c8f10b8a2d94e01fa',
+    video: false,
+    magnet: 'magnet:?xt=urn:btih:9f8a1c6db5e30d0d2e4a7b3c8f10b8a2d94e01fa&dn=ubuntu-24.04.2-desktop-amd64.iso',
+    files: [['ubuntu-24.04.2-desktop-amd64.iso', '6.1 GB']],
+    trackers: ['https://torrent.ubuntu.com/announce', 'https://ipv6.torrent.ubuntu.com/announce'],
+  },
+  {
+    name: 'Sintel.2010.4K.Remux.AVC.DTS-HD',
+    size: '42.7 GB', fileCount: 12, date: '2010-09-27',
+    hash: 'e19ea7f0f7c1c2d3b4a596070611121314151617',
+    video: true,
+    magnet: 'magnet:?xt=urn:btih:e19ea7f0f7c1c2d3b4a596070611121314151617&dn=Sintel.2010.4K.Remux.AVC.DTS-HD',
+    files: [
+      ['BDMV/STREAM/00000.m2ts', '42.5 GB'],
+      ['BDMV/index.bdmv', '94.0 KB'],
+      ['CERTIFICATE/id.bdmv', '18.0 KB'],
+      ['封面.jpg', '1.4 MB'],
+    ],
+    trackers: ['udp://tracker.opentrackr.org:1337', 'udp://exodus.desync.com:6969', 'udp://open.stealth.si:80', 'https://tracker.tamersunion.org/announce'],
+  },
+];
+const ERR_ITEM = { name: 'corrupted-download.torrent', err: 'Bencode 解析失败：不是一个有效的种子文件' };
+
+/* ---- 原型状态（内存态，无持久化）---- */
+const S = {
+  variant: new URLSearchParams(location.search).get('variant') || 'A',
+  state: 'results',       // empty | drag | parsing | results | error
+  mobile: false,
+  expanded: 0,            // 变体 A 展开的卡片下标
+  vbTab: 'convert',       // 变体 B 移动端页签
+  drawer: null,           // 变体 C 打开的抽屉
+};
+const VARIANT_NAMES = {
+  A: 'A · 单列流（现结构演进）',
+  B: 'B · 双栏工作台（左输入右结果）',
+  C: 'C · 抽屉详情（列表 + 侧滑详情）',
+};
+
+/* ---- 原子小组件（各变体共用）---- */
+const checkline = (id, label, checked) =>
+  `<label class="checkline"><input type="checkbox" ${checked ? 'checked' : ''} id="${id}"> <span>${label}</span></label>`;
+const acts = (i, shareable) => `
+  <button class="btn btn-ghost btn-sm" data-copy="${i}">复制</button>
+  ${shareable ? '<button class="btn btn-ghost btn-sm">分享</button>' : ''}
+  <button class="btn btn-ghost btn-sm">打开</button>`;
+const detailBody = (t) => `
+  <dl class="kv" style="margin-bottom:10px">
+    <dt>大小</dt><dd>${t.size}</dd>
+    <dt>文件数</dt><dd>${t.fileCount}</dd>
+    <dt>创建日期</dt><dd>${t.date}</dd>
+  </dl>
+  <ul class="va-files">${t.files.map(f => `<li><span class="path mono">${f[0]}</span><span class="sz">${f[1]}</span></li>`).join('')}</ul>
+  <div style="margin:10px 0 6px;font-size:.75rem;color:var(--muted)">Tracker（${t.trackers.length} + 注入 ${window.__trInjected ? '20' : '0'}）</div>
+  <div class="va-tr">${t.trackers.map(tr => `<span class="tag mono">${tr}</span>`).join('')}</div>
+  <div class="va-hash mono">info_hash: ${t.hash}</div>`;
+const optionsRow = () => `
+  ${checkline('opt-tr', '注入 20 个公共 tracker', true)}
+  ${checkline('opt-dn', '包含名称 (dn)', true)}
+  ${checkline('opt-hex', 'hash 用 base32', false)}`;
+
+/* ---- 变体 A：单列流 ---- */
+function renderA() {
+  const s = S.state;
+  let main = '';
+  if (s === 'empty' || s === 'drag') main = `
+    <div class="va-drop ${s === 'drag' ? 'over' : ''}">
+      <div class="icon">🗂️</div>
+      <h1>${s === 'drag' ? '松手即可开始转换' : '拖拽 .torrent 文件到此处'}</h1>
+      <p>${s === 'drag' ? '已识别 3 个种子文件' : '全程本地处理，文件不会上传'}</p>
+      <div class="va-actions">
+        <button class="btn btn-primary">选择文件</button>
+        <button class="btn btn-ghost" ${S.mobile ? 'hidden' : ''}>选择文件夹</button>
+      </div>
+    </div>
+    <div class="va-options">${optionsRow()}</div>`;
+  if (s === 'parsing') main = `
+    <div class="va-drop">
+      <div class="icon">⚙️</div>
+      <h1>正在解析…</h1>
+      <p>2 / 3</p>
+    </div>
+    <div class="va-status">解析中<div class="bar"><i></i></div></div>`;
+  if (s === 'results' || s === 'error') {
+    const items = s === 'results' ? MOCK : [MOCK[0], ERR_ITEM];
+    main = `
+      <div class="va-drop" style="padding:24px">
+        <div class="va-actions"><button class="btn btn-primary">选择文件</button></div>
+        <div class="va-options">${optionsRow()}</div>
+      </div>
+      ${s === 'error' ? '<div class="va-status error">corrupted-download.torrent：Bencode 解析失败，不是一个有效的种子文件</div>' : ''}
+      <div class="va-results fade-in">
+        <h2>转换结果 <button class="btn btn-ghost btn-sm">复制全部</button></h2>
+        ${items.map((t, i) => t.err ? `
+          <div class="va-card" style="border-color:rgba(239,68,68,.4)">
+            <div class="row"><div class="info"><div class="name">${t.name}</div><div class="meta" style="color:var(--err)">${t.err}</div></div></div>
+          </div>` : `
+          <div class="va-card">
+            <div class="row" data-exp="${i}">
+              <div class="info">
+                <div class="name">${t.name} ${t.video ? '<span class="tag video">视频</span>' : ''}</div>
+                <div class="meta">${t.fileCount} 个文件 · ${t.size} · ${t.date}</div>
+                <div class="meta mono" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.magnet}</div>
+              </div>
+              <div class="acts">${acts(i, true)}</div>
+            </div>
+            ${S.expanded === i ? `<div class="detail">${detailBody(t)}</div>` : ''}
+          </div>`).join('')}
+      </div>`;
+  }
+  return `
+    <div class="va-wrap">
+      <div class="va-topbar">
+        <div class="va-logo">T2M</div>
+        <button class="va-login">登录</button>
+      </div>
+      ${main}
+      <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:40px">所有处理均在浏览器本地完成</p>
+    </div>`;
+}
+
+/* ---- 变体 B：双栏工作台 ---- */
+function renderB() {
+  const s = S.state;
+  const left = `
+    <div class="vb-panel">
+      <div class="vb-logo">T2M</div>
+      <h1>转换种子</h1>
+      <div class="vb-mini-drop ${s === 'drag' ? 'over' : ''}">
+        ${s === 'drag' ? '松手即可开始转换（3 个文件）' : '拖拽 .torrent 到此处'}
+      </div>
+      <button class="btn btn-primary" style="width:100%">选择文件</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" ${S.mobile ? 'hidden' : ''}>选择文件夹</button>
+      <div class="vb-opt-title">输出选项</div>
+      <div class="vb-opt-group">${optionsRow()}</div>
+    </div>`;
+  let right = '';
+  if (s === 'empty') right = `<div class="vb-empty">还没有结果。<br>拖入或选择种子后，磁力链接会出现在这里。</div>`;
+  if (s === 'drag') right = `<div class="vb-empty" style="color:var(--primary);border-color:var(--primary)">已识别 3 个种子，松手开始转换…</div>`;
+  if (s === 'parsing') right = `
+    <h2>解析中 2/3</h2>
+    <div class="vb-empty"><div class="va-status"><div class="bar"><i></i></div></div></div>`;
+  if (s === 'results' || s === 'error') {
+    const items = s === 'results' ? MOCK : [MOCK[0], ERR_ITEM];
+    right = `
+      <h2>结果 <button class="btn btn-ghost btn-sm">复制全部</button></h2>
+      <div class="fade-in">
+        ${items.map((t, i) => t.err ? `
+          <div class="vb-row" style="border-color:rgba(239,68,68,.4)">
+            <div class="info"><div class="n">${t.name}</div><div class="m" style="color:var(--err)">${t.err}</div></div>
+          </div>` : `
+          <div class="vb-row" data-open="${i}">
+            <div class="info">
+              <div class="n">${t.name} ${t.video ? '<span class="tag video">视频</span>' : ''}</div>
+              <div class="m">${t.fileCount} 个文件 · ${t.size} · <span class="h">${t.hash.slice(0, 12)}…</span></div>
+            </div>
+            <div class="acts">
+              <button class="btn btn-ghost btn-sm" data-copy="${i}">复制</button>
+              ${i === 0 ? '<button class="btn btn-ghost btn-sm">分享</button>' : ''}
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }
+  return `
+    <div class="vb-tabs">
+      <button class="${S.vbTab === 'convert' ? 'on' : ''}" data-vbtab="convert">转换</button>
+      <button class="${S.vbTab === 'results' ? 'on' : ''}" data-vbtab="results">结果${s === 'results' || s === 'error' ? ' · ' + MOCK.length : ''}</button>
+    </div>
+    <div class="vb-wrap">
+      <div class="vb-col-l ${S.mobile && S.vbTab === 'results' ? 'off' : ''}">${left}</div>
+      <div class="vb-col-r ${S.mobile && S.vbTab === 'convert' ? 'off' : ''}">${right}</div>
+    </div>`;
+}
+function renderBModal(t) {
+  const mask = document.createElement('div');
+  mask.className = 'vb-modal-mask';
+  mask.innerHTML = `
+    <div class="vb-modal">
+      <button class="close">✕</button>
+      <h3>${t.name}</h3>
+      <dl class="kv" style="margin-bottom:10px"><dt>大小</dt><dd>${t.size}</dd><dt>创建日期</dt><dd>${t.date}</dd></dl>
+      <ul class="va-files">${t.files.map(f => `<li><span class="path mono">${f[0]}</span><span class="sz">${f[1]}</span></li>`).join('')}</ul>
+      <div style="margin:12px 0 6px;font-size:.75rem;color:var(--muted)">Tracker（${t.trackers.length}）</div>
+      <div class="va-tr">${t.trackers.map(tr => `<span class="tag mono">${tr}</span>`).join('')}</div>
+      <div class="va-hash mono">info_hash: ${t.hash}</div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-primary btn-sm">复制磁力</button>
+        <button class="btn btn-ghost btn-sm">分享</button>
+        <button class="btn btn-ghost btn-sm">打开</button>
+      </div>
+    </div>`;
+  mask.addEventListener('click', e => {
+    if (e.target === mask || e.target.closest('.close')) mask.remove();
+    const btn = e.target.closest('[data-copy]');
+    if (btn) flash(btn, '复制');
+  });
+  document.body.appendChild(mask);
+}
+
+/* ---- 变体 C：抽屉详情 ---- */
+function renderC() {
+  const s = S.state;
+  let body = '';
+  if (s === 'empty' || s === 'drag' || s === 'parsing') body = `
+    <div class="vc-hero">
+      <div class="logo">T2M</div>
+      <p>${s === 'drag' ? '已识别 3 个种子，松手开始转换' : s === 'parsing' ? '正在解析 2 / 3…' : '种子转磁力链接 · 全程本地处理'}</p>
+      ${s === 'parsing' ? '<div class="va-status" style="max-width:280px;margin:0 auto"><div class="bar"><i></i></div></div>' : `
+        <button class="btn btn-primary">选择文件</button>
+        <button class="btn btn-ghost" ${S.mobile ? 'hidden' : ''}>拖拽或粘贴到这里</button>`}
+    </div>`;
+  if (s === 'results' || s === 'error') body = `
+    <div class="vc-hero" style="padding-bottom:16px">
+      <div class="logo" style="font-size:1.3rem">T2M</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm">选择文件</button>
+        <button class="btn btn-ghost btn-sm">复制全部 (3)</button>
+      </div>
+    </div>
+    <ul class="vc-list fade-in">
+      ${items4C().map((t, i) => t.err ? `
+        <li class="vc-item" style="cursor:default">
+          <div class="badge" style="background:rgba(239,68,68,.12);color:var(--err)">✕</div>
+          <div class="info"><div class="n">${t.name}</div><div class="m" style="color:var(--err)">${t.err}</div></div>
+        </li>` : `
+        <li class="vc-item" data-open="${i}">
+          <div class="badge">${t.video ? '🎬' : '💿'}</div>
+          <div class="info">
+            <div class="n">${t.name}</div>
+            <div class="m">${t.fileCount} 个文件 · ${t.size}</div>
+          </div>
+          <span class="chev">›</span>
+        </li>`).join('')}
+    </ul>`;
+  return `<div class="vc-wrap">${body}</div>`;
+}
+const items4C = () => S.state === 'error' ? [MOCK[0], ERR_ITEM] : MOCK;
+function renderCDrawer(t) {
+  const mask = document.createElement('div');
+  mask.className = 'vc-drawer-mask';
+  const d = document.createElement('aside');
+  d.className = 'vc-drawer';
+  d.innerHTML = `
+    <button class="close">✕</button>
+    <h3>${t.name}</h3>
+    <div class="vc-sec"><h4>概览</h4>
+      <dl class="kv"><dt>总大小</dt><dd>${t.size}</dd><dt>文件数</dt><dd>${t.fileCount}</dd><dt>创建日期</dt><dd>${t.date}</dd></dl>
+    </div>
+    <div class="vc-sec"><h4>文件 (${t.files.length}${t.fileCount > t.files.length ? '+' : ''})</h4>
+      <ul class="va-files">${t.files.map(f => `<li><span class="path mono">${f[0]}</span><span class="sz">${f[1]}</span></li>`).join('')}</ul>
+    </div>
+    <div class="vc-sec"><h4>Tracker（${t.trackers.length} + 注入 20）</h4>
+      <div class="va-tr">${t.trackers.map(tr => `<span class="tag mono">${tr}</span>`).join('')}</div>
+    </div>
+    <div class="vc-sec"><h4>info_hash</h4><div class="va-hash mono" style="font-size:.8rem">${t.hash}</div></div>
+    <div class="acts">
+      <button class="btn btn-primary" data-copy>复制磁力</button>
+      <button class="btn btn-ghost" data-share>分享</button>
+      <button class="btn btn-ghost">打开</button>
+    </div>`;
+  mask.appendChild(d);
+  document.body.appendChild(mask);
+  const close = () => { mask.remove(); S.drawer = null; render(); };
+  mask.addEventListener('click', e => { if (e.target === mask) close(); });
+  d.querySelector('.close').onclick = close;
+  d.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => flash(b, '已复制'));
+  d.querySelectorAll('[data-share]').forEach(b => b.onclick = () => flash(b, '已调起分享'));
+}
+
+/* ---- 通用 ---- */
+function flash(btn, text) {
+  const old = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => { btn.textContent = old; }, 1200);
+}
+function render() {
+  document.getElementById('app').innerHTML =
+    S.variant === 'A' ? renderA() : S.variant === 'B' ? renderB() : renderC();
+  document.getElementById('variantLabel').textContent = VARIANT_NAMES[S.variant];
+  document.getElementById('stateNote').textContent = S.mobile ? '手机宽度 390px' : '';
+  bind();
+}
+function bind() {
+  const app = document.getElementById('app');
+  app.querySelectorAll('[data-exp]').forEach(el => el.addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    const i = +el.dataset.exp;
+    S.expanded = S.expanded === i ? -1 : i;
+    render();
+  }));
+  app.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    const t = items4C()[+el.dataset.open] || MOCK[+el.dataset.open];
+    if (!t) return;
+    if (S.variant === 'B') renderBModal(t);
+    if (S.variant === 'C') renderCDrawer(t);
+  }));
+  app.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    flash(b, '已复制');
+  }));
+  app.querySelectorAll('[data-vbtab]').forEach(b => b.addEventListener('click', () => {
+    S.vbTab = b.dataset.vbtab; render();
+  }));
+  const tr = app.querySelector('#opt-tr');
+  if (tr) tr.addEventListener('change', () => { window.__trInjected = tr.checked; render(); });
+}
+
+/* ---- 原型控制 ---- */
+document.getElementById('statePill').addEventListener('click', e => {
+  const b = e.target.closest('button[data-s]');
+  if (!b) return;
+  S.state = b.dataset.s;
+  document.querySelectorAll('#statePill button').forEach(x => x.classList.toggle('on', x === b));
+  if (S.drawer) S.drawer = null;
+  render();
+});
+document.getElementById('btnMobile').addEventListener('click', () => {
+  S.mobile = !S.mobile;
+  document.getElementById('stage').classList.toggle('mobile', S.mobile);
+  document.getElementById('btnMobile').classList.toggle('on', S.mobile);
+  render();
+});
+function setVariant(v) {
+  S.variant = v;
+  const u = new URL(location);
+  u.searchParams.set('variant', v);
+  history.replaceState(null, '', u);
+  render();
+}
+document.getElementById('prev').onclick = () => setVariant(S.variant === 'A' ? 'C' : S.variant === 'B' ? 'A' : 'B');
+document.getElementById('next').onclick = () => setVariant(S.variant === 'A' ? 'B' : S.variant === 'B' ? 'C' : 'A');
+document.addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft') document.getElementById('prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('next').click();
+});
+
+document.querySelectorAll('#statePill button').forEach(x => x.classList.toggle('on', x.dataset.s === S.state));
+document.getElementById('btnMobile').classList.toggle('on', S.mobile);
+render();
+</script>
+</body>
+</html>
