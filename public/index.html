@@ -81,7 +81,19 @@
 
         <div class="opt-section">
           <div class="opt-title">输出选项</div>
-          <p class="opt-placeholder">即将推出：tracker 注入、名称与格式选项</p>
+          <label class="filter-label">
+            <input type="checkbox" id="chkIncludeDn" checked>
+            <span>磁力链接包含名称（dn）</span>
+          </label>
+          <label class="filter-label">
+            <input type="checkbox" id="chkIncludeTr" checked>
+            <span>磁力链接包含 tracker（tr）</span>
+          </label>
+          <div class="opt-hash-format">
+            <span class="opt-hash-label">info hash 格式</span>
+            <label class="filter-label"><input type="radio" name="hashFormat" id="optHashHex" value="hex" checked><span>hex</span></label>
+            <label class="filter-label"><input type="radio" name="hashFormat" id="optHashBase32" value="base32"><span>base32</span></label>
+          </div>
         </div>
       </div>
 
@@ -186,7 +198,9 @@
       <code class="drawer-magnet" id="drawerMagnet"></code>
     </div>
     <div class="drawer-footer">
-      <button id="btnDrawerCopyMagnet" class="btn btn-primary btn-block">复制磁力链接</button>
+      <button id="btnDrawerOpenMagnet" class="btn btn-secondary btn-drawer-footer">一键打开</button>
+      <button id="btnDrawerShareMagnet" class="btn btn-secondary btn-drawer-footer">分享</button>
+      <button id="btnDrawerCopyMagnet" class="btn btn-primary btn-drawer-footer">复制磁力链接</button>
     </div>
   </aside>
 

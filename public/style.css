@@ -340,11 +340,6 @@ body::after {
   color: var(--color-text-muted);
   margin-bottom: 10px;
 }
-.opt-placeholder {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-}
-
 .filter-label {
   display: inline-flex;
   align-items: center;
@@ -749,6 +744,37 @@ body.drawer-open { overflow: hidden; }
 .drawer-footer {
   padding: 16px 24px;
   border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 8px;
+}
+.btn-drawer-footer { flex: 1; }
+
+.opt-hash-format {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.opt-hash-label {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+.opt-hash-format .filter-label { gap: 6px; }
+.opt-hash-format input[type="radio"] {
+  appearance: none;
+  width: 16px; height: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  position: relative;
+}
+.opt-hash-format input[type="radio"]:checked {
+  border-color: var(--color-primary);
+  background: radial-gradient(circle, var(--color-primary) 40%, transparent 45%);
 }
 
 /* ===== 历史面板 ===== */

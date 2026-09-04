@@ -223,17 +223,48 @@ window.T2M.Bencode = (function () {
   }
 
   /**
+   * 十六进制 info hash 转大写 base32（32 字符，RFC 4648，无填充）
+   * @param {string} hex - 40 位十六进制 info hash
+   * @returns {string}
+   */
+  function hexToBase32(hex) {
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0;
+    let value = 0;
+    let out = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      const byte = parseInt(hex.substring(i, i + 2), 16);
+      value = (value << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        out += ALPHABET[(value >>> bits) & 31];
+      }
+    }
+    if (bits > 0) {
+      out += ALPHABET[(value << (5 - bits)) & 31];
+    }
+    return out;
+  }
+
+  /**
    * 生成磁力链接
    * @param {string} infoHash - 40 位十六进制 info hash
    * @param {string} name - 种子名称
    * @param {string[]} trackers - tracker 地址列表（可选）
+   * @param {{includeName?: boolean, includeTrackers?: boolean}} [opts] - 输出选项，默认均包含
    * @returns {string} 磁力链接
    */
-  function buildMagnetLink(infoHash, name, trackers) {
-    let magnet = 'magnet:?xt=urn:btih:' + infoHash;
-    magnet += '&dn=' + encodeURIComponent(name);
+  function buildMagnetLink(infoHash, name, trackers, opts) {
+    const includeName = !opts || opts.includeName !== false;
+    const includeTrackers = !opts || opts.includeTrackers !== false;
 
-    if (trackers && trackers.length > 0) {
+    let magnet = 'magnet:?xt=urn:btih:' + infoHash;
+    if (includeName && name) {
+      magnet += '&dn=' + encodeURIComponent(name);
+    }
+
+    if (includeTrackers && trackers && trackers.length > 0) {
       for (const tr of trackers) {
         magnet += '&tr=' + encodeURIComponent(tr);
       }
@@ -412,6 +443,7 @@ window.T2M.Bencode = (function () {
   window.T2M.Magnet = {
     convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
     hasVideoFiles, getFileExtensions, isVideoExtension,
-    PUBLIC_TRACKERS, injectPublicTrackers, formatCreationDate, VIDEO_EXTENSIONS
+    PUBLIC_TRACKERS, injectPublicTrackers, formatCreationDate, VIDEO_EXTENSIONS,
+    hexToBase32
   };
 })();
