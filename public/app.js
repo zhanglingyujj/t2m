@@ -153,6 +153,7 @@
       const data = await resp.json();
       isAuthenticated = data.authenticated;
       updateAuthUI(data);
+      if (isAuthenticated) loadHistory();
     } catch (e) {
       isAuthenticated = false;
       updateAuthUI({ authenticated: false });
