@@ -43,8 +43,13 @@ T2M/
 ├── README.md              # 项目说明
 ├── wrangler.toml           # Cloudflare Workers 配置
 ├── package.json            # 仅用于 wrangler CLI
+├── schema.sql              # D1 表结构（auth + 历史）
+├── docs/
+│   ├── spec/v2.md          # v2 改版 spec（功能清单 + UI 结构 + 实施批次）
+│   ├── agents/             # agent 工作流文档
+│   └── research/           # 调研记录
 ├── src/
-│   └── index.js            # Worker 入口：托管静态资源
+│   └── index.js            # Worker 入口：JWT 认证 + 历史 API + 静态资源托管
 └── public/
     ├── index.html          # 主页面
     ├── style.css           # 样式
@@ -56,11 +61,19 @@ T2M/
 
 | 文件 | 职责 |
 |------|------|
-| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，构造磁力链接 |
-| `public/app.js` | 拖拽/文件选择处理，批量解析，结果渲染，复制功能 |
-| `public/index.html` | 页面结构与语义标签 |
+| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，构造磁力链接（dn/tr 可选，公共 tracker 注入，hash base32 转换） |
+| `public/app.js` | 拖拽/文件选择处理，批量解析，结果渲染，复制/分享/一键打开，输出选项，抽屉详情，历史与登录 |
+| `public/index.html` | 页面结构与语义标签（双栏工作台 + 侧滑抽屉 + 移动端页签） |
 | `public/style.css` | 响应式布局，拖拽区域高亮，结果列表样式 |
-| `src/index.js` | Cloudflare Worker 入口，使用 `[assets]` 绑定托管静态文件 |
+| `src/index.js` | Cloudflare Worker 入口：JWT 登录/登出/状态接口，历史 CRUD（D1），静态资源回退 |
+
+## v2 功能概览（详见 docs/spec/v2.md）
+
+- 双栏工作台：左栏输入 + 选项 + 历史，右栏结果列表；移动端（≤760px）降级为页签 + 底部抽屉
+- 种子详情抽屉：name、总大小、文件数、创建日期、文件列表、tracker 列表（含注入标记）、info hash、磁力链接
+- 公共 tracker 注入（左栏勾选，~20 个）与输出选项（dn/tr 开关、hash hex/base32）实时作用于所有输出
+- 每条结果支持复制 / 一键打开（magnet: URI）/ Web Share（canShare 探测后显示）；另有复制全部
+- 视频过滤与过滤摘要、粘贴导入、登录 + D1 历史保留
 
 ## 本地开发
 
