@@ -1,6 +1,6 @@
-﻿/**
+/**
  * T2M - 主应用逻辑
- * 模块：Auth / History / DropZone / Results / App
+ * 模块：Auth / History / DropZone / Results / Drawer / Tabs / App
  */
 (function () {
   'use strict';
@@ -13,7 +13,9 @@
   const btnSelectFolder = document.getElementById('btnSelectFolder');
   const dropPreview = document.getElementById('dropPreview');
   const statusEl = document.getElementById('status');
-  const resultsEl = document.getElementById('results');
+  const emptyState = document.getElementById('emptyState');
+  const parseProgress = document.getElementById('parseProgress');
+  const parseProgressText = document.getElementById('parseProgressText');
   const resultList = document.getElementById('resultList');
   const btnCopyAll = document.getElementById('btnCopyAll');
   const chkVideoOnly = document.getElementById('chkVideoOnly');
@@ -39,9 +41,21 @@
   const statTotal = document.getElementById('statTotal');
   const statVideo = document.getElementById('statVideo');
   const statNonVideo = document.getElementById('statNonVideo');
+  const drawerMask = document.getElementById('drawerMask');
+  const drawer = document.getElementById('drawer');
+  const drawerName = document.getElementById('drawerName');
+  const drawerSize = document.getElementById('drawerSize');
+  const drawerFileCount = document.getElementById('drawerFileCount');
+  const drawerFiles = document.getElementById('drawerFiles');
+  const drawerHash = document.getElementById('drawerHash');
+  const btnDrawerCopyHash = document.getElementById('btnDrawerCopyHash');
+  const drawerMagnet = document.getElementById('drawerMagnet');
+  const btnDrawerCopyMagnet = document.getElementById('btnDrawerCopyMagnet');
+  const drawerClose = document.getElementById('drawerClose');
 
   // ===== 状态 =====
   let allTorrentResults = [];
+  let errorResults = [];
   let historyData = [];
   let isAuthenticated = false;
 
@@ -53,14 +67,6 @@
 
   function hideStatus() {
     statusEl.className = 'status hidden';
-  }
-
-  function showResults() {
-    resultsEl.classList.remove('hidden');
-  }
-
-  function hideResults() {
-    resultsEl.classList.add('hidden');
   }
 
   function escapeHTML(str) {
@@ -124,6 +130,21 @@
   function getTotalSize(fileList) {
     return fileList.reduce(function (sum, f) { return sum + (f.size || 0); }, 0);
   }
+
+  // ===== 移动端页签 =====
+  function isMobileLayout() {
+    return window.matchMedia('(max-width: 760px)').matches;
+  }
+
+  function switchTab(tab) {
+    document.body.dataset.tab = tab;
+  }
+
+  document.querySelectorAll('.mobile-tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      switchTab(btn.dataset.tab);
+    });
+  });
 
   // ===== Auth 模块 =====
   async function checkAuthStatus() {
@@ -387,17 +408,19 @@
     }
 
     allTorrentResults = [];
-    hideResults();
+    errorResults = [];
+    hideStatus();
     hideFilterSummary();
     resultList.innerHTML = '';
-    showStatus('正在处理 ' + torrentFiles.length + ' 个种子文件...', '');
-    dropZone.classList.add('processing');
+    emptyState.classList.add('hidden');
+    btnCopyAll.style.display = 'none';
+    parseProgress.classList.remove('hidden');
 
     let successCount = 0;
-    const errors = [];
 
     for (var i = 0; i < torrentFiles.length; i++) {
       var file = torrentFiles[i];
+      parseProgressText.textContent = '解析中 ' + (i + 1) + '/' + torrentFiles.length;
       try {
         const fileData = await readFileAsArrayBuffer(file);
         const result = await window.T2M.Magnet.convertTorrent(fileData, file.name);
@@ -405,16 +428,20 @@
         allTorrentResults.push(result);
         successCount++;
       } catch (err) {
-        errors.push({ name: file.name, error: err.message });
+        errorResults.push({ name: file.name, error: err.message });
       }
     }
 
-    dropZone.classList.remove('processing');
+    parseProgress.classList.add('hidden');
+    closeDrawer();
+
+    // 移动端：解析完成后切到结果页签
+    if (isMobileLayout()) switchTab('results');
 
     renderFilteredResults();
 
-    if (errors.length > 0) {
-      const errorMsg = errors.map(function (e) { return e.name + ': ' + e.error; }).join('; ');
+    if (errorResults.length > 0) {
+      const errorMsg = errorResults.map(function (e) { return e.name + ': ' + e.error; }).join('; ');
       showStatus('部分文件转换失败: ' + errorMsg, 'error');
     } else if (allTorrentResults.length > 0) {
       showStatus('成功转换 ' + allTorrentResults.length + ' 个种子文件', '');
@@ -444,20 +471,27 @@
     }
 
     resultList.innerHTML = '';
+
     if (filtered.length > 0) {
       for (let i = 0; i < filtered.length; i++) {
         resultList.appendChild(renderResultItem(filtered[i], i));
       }
-      showResults();
+      btnCopyAll.style.display = '';
       bindCopyButtons(filtered);
-      bindExpandButtons(filtered);
+      bindRowClicks(filtered);
+      emptyState.classList.add('hidden');
     } else {
-      hideResults();
+      btnCopyAll.style.display = 'none';
       if (allTorrentResults.length > 0) {
         showStatus('已转换 ' + allTorrentResults.length + ' 个种子，但全部不含视频文件，已过滤', 'error');
-      } else {
-        hideStatus();
+      } else if (errorResults.length === 0) {
+        emptyState.classList.remove('hidden');
       }
+    }
+
+    // 错误条目行内展示（追加在末尾，红色标注）
+    for (let k = 0; k < errorResults.length; k++) {
+      resultList.appendChild(renderErrorItem(errorResults[k]));
     }
 
     if (showVideoOnly) {
@@ -476,77 +510,42 @@
     const metaParts = [];
     if (fileList.length > 0) metaParts.push(fileList.length + ' 个文件');
     if (totalSize > 0) metaParts.push(formatSize(totalSize));
-    const meta = metaParts.length > 0 ? metaParts.join(' · ') : '';
+    metaParts.push(result.infoHash.substring(0, 12) + '…');
 
     li.innerHTML =
-      '<div class="result-header" data-index="' + index + '">' +
+      '<div class="result-row" data-index="' + index + '">' +
         '<div class="result-info">' +
           '<div class="result-name">' + escapeHTML(result.name) + '</div>' +
-          (meta ? '<div class="result-meta">' + meta + '</div>' : '') +
-          '<div class="result-magnet">' + escapeHTML(result.magnet) + '</div>' +
+          '<div class="result-meta">' + metaParts.join(' · ') + '</div>' +
         '</div>' +
         '<div class="result-actions">' +
           '<button class="btn-copy" data-index="' + index + '">复制</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="result-expand" data-index="' + index + '">' +
-        '<ul class="file-list">' +
-          (fileList.length > 0
-            ? fileList.map(function (f) {
-                return '<li class="file-item">' +
-                  '<span class="file-item-path">' + escapeHTML(f.path) + '</span>' +
-                  '<span class="file-item-size">' + formatSize(f.size) + '</span>' +
-                '</li>';
-              }).join('')
-            : '<li class="file-item"><span class="file-item-path">（无文件信息）</span></li>'
-          ) +
-        '</ul>' +
-        '<div class="result-expand-footer">' +
-          '<code class="info-hash-text">' + result.infoHash + '</code>' +
-          '<button class="btn-copy-hash" data-hash="' + result.infoHash + '">复制 Hash</button>' +
         '</div>' +
       '</div>';
 
     return li;
   }
 
-  function bindExpandButtons(results) {
-    const headers = resultList.querySelectorAll('.result-header');
-    headers.forEach(function (header) {
-      header.addEventListener('click', function () {
-        const index = parseInt(this.dataset.index);
-        const expand = resultList.querySelector('.result-expand[data-index="' + index + '"]');
-        if (expand) {
-          const isActive = expand.classList.contains('active');
-          // 关闭所有展开
-          resultList.querySelectorAll('.result-expand.active').forEach(function (el) {
-            el.classList.remove('active');
-          });
-          if (!isActive) expand.classList.add('active');
-        }
-      });
-    });
+  function renderErrorItem(err) {
+    const li = document.createElement('li');
+    li.className = 'result-item result-item-error';
+    li.innerHTML =
+      '<div class="result-row">' +
+        '<div class="result-info">' +
+          '<div class="result-name">' + escapeHTML(err.name) + '</div>' +
+          '<div class="result-meta result-meta-error">' + escapeHTML(err.error) + '</div>' +
+        '</div>' +
+      '</div>';
+    return li;
+  }
 
-    // 复制 info hash
-    const hashBtns = resultList.querySelectorAll('.btn-copy-hash');
-    hashBtns.forEach(function (btn) {
-      btn.addEventListener('click', async function (e) {
-        e.stopPropagation();
-        const hash = this.dataset.hash;
-        try {
-          await copyToClipboard(hash);
-          this.textContent = '已复制';
-          this.classList.add('copied');
-          setTimeout(function () {
-            btn.textContent = '复制 Hash';
-            btn.classList.remove('copied');
-          }, 2000);
-        } catch (err) {
-          this.textContent = '失败';
-          setTimeout(function () {
-            btn.textContent = '复制 Hash';
-          }, 2000);
-        }
+  function bindRowClicks(results) {
+    const rows = resultList.querySelectorAll('.result-row');
+    rows.forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        const index = parseInt(this.dataset.index);
+        if (results[index]) openDrawer(results[index]);
       });
     });
   }
@@ -575,6 +574,72 @@
       });
     });
   }
+
+  // ===== 详情抽屉 =====
+  let drawerResult = null;
+
+  function openDrawer(result) {
+    drawerResult = result;
+    const fileList = result.fileList || [];
+    drawerName.textContent = result.name;
+    drawerSize.textContent = formatSize(getTotalSize(fileList));
+    drawerFileCount.textContent = fileList.length + ' 个';
+    drawerFiles.innerHTML = fileList.length > 0
+      ? fileList.map(function (f) {
+          return '<li class="drawer-file-item">' +
+            '<span class="drawer-file-path">' + escapeHTML(f.path) + '</span>' +
+            '<span class="drawer-file-size">' + formatSize(f.size) + '</span>' +
+          '</li>';
+        }).join('')
+      : '<li class="drawer-file-item"><span class="drawer-file-path">（无文件信息）</span></li>';
+    drawerHash.textContent = result.infoHash;
+    drawerMagnet.textContent = result.magnet;
+
+    drawer.classList.remove('hidden');
+    drawerMask.classList.remove('hidden');
+    document.body.classList.add('drawer-open');
+  }
+
+  function closeDrawer() {
+    drawer.classList.add('hidden');
+    drawerMask.classList.add('hidden');
+    document.body.classList.remove('drawer-open');
+    drawerResult = null;
+  }
+
+  drawerClose.addEventListener('click', closeDrawer);
+  drawerMask.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !drawer.classList.contains('hidden')) closeDrawer();
+  });
+
+  btnDrawerCopyMagnet.addEventListener('click', async function () {
+    if (!drawerResult) return;
+    try {
+      await copyToClipboard(drawerResult.magnet);
+      this.textContent = '已复制';
+      setTimeout(function () { btnDrawerCopyMagnet.textContent = '复制磁力链接'; }, 2000);
+    } catch (err) {
+      this.textContent = '复制失败，请重试';
+      setTimeout(function () { btnDrawerCopyMagnet.textContent = '复制磁力链接'; }, 2000);
+    }
+  });
+
+  btnDrawerCopyHash.addEventListener('click', async function () {
+    if (!drawerResult) return;
+    try {
+      await copyToClipboard(drawerResult.infoHash);
+      this.textContent = '已复制';
+      this.classList.add('copied');
+      setTimeout(function () {
+        btnDrawerCopyHash.textContent = '复制 Hash';
+        btnDrawerCopyHash.classList.remove('copied');
+      }, 2000);
+    } catch (err) {
+      this.textContent = '失败';
+      setTimeout(function () { btnDrawerCopyHash.textContent = '复制 Hash'; }, 2000);
+    }
+  });
 
   // ===== 一键复制全部 =====
   async function copyAll() {
@@ -676,10 +741,16 @@
     }
   });
 
-  // 点击拖拽区打开文件选择
-  dropZone.addEventListener('click', function (e) {
-    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
+  // 点击 mini 拖拽区打开文件选择
+  dropZone.addEventListener('click', function () {
     fileInput.click();
+  });
+
+  dropZone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
   });
 
   // 拖拽放下
@@ -687,6 +758,7 @@
     e.preventDefault();
     e.stopPropagation();
     dropZone.classList.remove('drag-over');
+    dropPreview.textContent = '';
 
     const items = e.dataTransfer.items;
     if (!items) return;
