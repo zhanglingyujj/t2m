@@ -26,7 +26,6 @@
   const filterNonVideoExts = document.getElementById('filterNonVideoExts');
   const filterRegexRow = document.getElementById('filterRegexRow');
   const filterRegex = document.getElementById('filterRegex');
-  const btnCopyRegex = document.getElementById('btnCopyRegex');
   const btnLogin = document.getElementById('btnLogin');
   const btnLogout = document.getElementById('btnLogout');
   const authUser = document.getElementById('authUser');
@@ -74,12 +73,18 @@
   const chkIncludeDn = document.getElementById('chkIncludeDn');
   const chkIncludeTr = document.getElementById('chkIncludeTr');
   const hashFormatInputs = document.querySelectorAll('input[name="hashFormat"]');
+  const paginationResults = document.getElementById('pagination');
+  const paginationHistory = document.getElementById('paginationHistory');
 
   // ===== 状态 =====
   let allTorrentResults = [];
   let errorResults = [];
   let historyData = [];
   let isAuthenticated = false;
+
+  // 分页状态
+  let pageSize = 20;
+  let pageNum = 1;
 
   // ===== 工具函数 =====
   function showStatus(message, type) {
@@ -240,16 +245,20 @@
   let currentView = 'results';
 
   function switchView(view) {
+    closeDrawer();
     currentView = view;
     const isHistory = view === 'history';
     tabResultsView.classList.toggle('active', !isHistory);
     tabHistoryView.classList.toggle('active', isHistory);
+    tabResultsView.setAttribute('aria-selected', String(!isHistory));
+    tabHistoryView.setAttribute('aria-selected', String(isHistory));
     historyPanel.classList.toggle('hidden', !isHistory);
     resultsView.classList.toggle('hidden', isHistory);
     statsResults.classList.toggle('hidden', isHistory);
     statsHistory.classList.toggle('hidden', !isHistory);
+    filterSummary.classList.toggle('hidden', isHistory || !filterSummaryShown);
     historySearch.placeholder = isHistory ? '搜索历史记录…' : '搜索转换结果…';
-    pageTitle.textContent = isHistory ? '历史' : '转换结果';
+    pageTitle.textContent = isHistory ? '历史' : '转换';
     document.querySelectorAll('.nav-item[data-view]').forEach(function (item) {
       item.classList.toggle('active', item.dataset.view === view);
     });
@@ -366,6 +375,7 @@
       const resp = await fetch(url);
       if (resp.ok) {
         historyData = await resp.json();
+        historyPageNum = 1;
         renderHistory(historyData);
       }
     } catch (e) {}
@@ -399,11 +409,31 @@
     } catch (e) {}
   }
 
+  let historyPageNum = 1;
+  let historyPageSize = 20;
+
+  const historyPager = setupPagination(paginationHistory, function (n) {
+    historyPageNum = n;
+    renderHistory(historyData);
+    const listCard = paginationHistory.closest('.list-card');
+    if (listCard) listCard.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, function (sz) {
+    historyPageSize = sz;
+    historyPageNum = 1;
+    renderHistory(historyData);
+  });
+
   function renderHistory(data) {
-    if (data.length === 0) {
+    const total = data.length;
+    const totalPages = Math.max(1, Math.ceil(total / historyPageSize));
+    if (historyPageNum > totalPages) historyPageNum = totalPages;
+    const start = (historyPageNum - 1) * historyPageSize;
+    const pageData = data.slice(start, start + historyPageSize);
+
+    if (pageData.length === 0) {
       historyList.innerHTML = '<li class="history-empty">暂无历史记录</li>';
     } else {
-      historyList.innerHTML = data.map(function (item) {
+      historyList.innerHTML = pageData.map(function (item) {
         var fileCount = item.file_count;
         var totalSize = item.total_size;
         var meta = [];
@@ -445,6 +475,7 @@
     historyCount.textContent = data.length > 0 ? data.length + ' 条' : '';
     statVideo.textContent = videoCount;
     statNonVideo.textContent = nonVideoCount;
+    historyPager.update(historyPageNum, totalPages, total);
   }
 
   /**
@@ -468,7 +499,7 @@
     if (currentView === 'history') {
       loadHistory(this.value || undefined);
     } else {
-      renderFilteredResults();
+      renderFilteredResults(true);
     }
   });
 
@@ -587,7 +618,7 @@
     // 移动端：解析完成后切到结果页签
     if (isMobileLayout()) switchTab('results');
 
-    renderFilteredResults();
+    renderFilteredResults(true);
 
     if (errorResults.length > 0) {
       const errorMsg = errorResults.map(function (e) { return e.name + ': ' + e.error; }).join('; ');
@@ -607,7 +638,8 @@
   }
 
   // ===== 过滤与渲染 =====
-  function renderFilteredResults() {
+  function renderFilteredResults(resetPage) {
+    if (resetPage) pageNum = 1;
     const showVideoOnly = chkVideoOnly.checked;
     const Magnet = window.T2M.Magnet;
     const query = (historySearch.value || '').trim().toLowerCase();
@@ -634,10 +666,17 @@
     statFiltered.textContent = excluded.length;
     statFailed.textContent = errorResults.length;
 
+    // 分页：成功项在前、错误项在后统一计入总数
+    const total = filtered.length + errorResults.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (pageNum > totalPages) pageNum = totalPages;
+    const start = (pageNum - 1) * pageSize;
+    const page = filtered.slice(start, start + pageSize);
+
     resultList.innerHTML = '';
 
     if (filtered.length > 0) {
-      for (let i = 0; i < filtered.length; i++) {
+      for (let i = start; i < start + page.length; i++) {
         resultList.appendChild(renderResultItem(filtered[i], i));
       }
       btnCopyAll.style.display = '';
@@ -659,12 +698,15 @@
       }
     }
 
-    // 错误条目行内展示（追加在末尾，红色标注）
-    for (let k = 0; k < errorResults.length; k++) {
-      resultList.appendChild(renderErrorItem(errorResults[k]));
+    // 错误条目行内展示（追加在末尾，红色标注，仅最后一页）
+    if (pageNum === totalPages) {
+      for (let k = 0; k < errorResults.length; k++) {
+        resultList.appendChild(renderErrorItem(errorResults[k]));
+      }
     }
 
-    resultCount.textContent = resultList.children.length > 0 ? resultList.children.length + ' 条' : '';
+    resultCount.textContent = total > 0 ? total + ' 条' : '';
+    resultsPager.update(pageNum, totalPages, total);
 
     if (showVideoOnly) {
       renderFilterSummary(allTorrentResults, excluded);
@@ -672,6 +714,50 @@
       hideFilterSummary();
     }
   }
+
+  // ===== 分页 =====
+  function setupPagination(bar, onGoto, onSizeChange) {
+    const first = bar.querySelector('.pg-first');
+    const prev = bar.querySelector('.pg-prev');
+    const next = bar.querySelector('.pg-next');
+    const last = bar.querySelector('.pg-last');
+    const info = bar.querySelector('.pagination-info');
+    const size = bar.querySelector('.pg-size');
+    const state = { page: 1, totalPages: 1 };
+
+    function update(page, totalPages, total) {
+      state.page = page;
+      state.totalPages = totalPages;
+      if (total === 0) {
+        bar.classList.add('hidden');
+        return;
+      }
+      bar.classList.remove('hidden');
+      first.disabled = prev.disabled = page <= 1;
+      next.disabled = last.disabled = page >= totalPages;
+      info.textContent = '第 ' + page + ' / ' + totalPages + ' 页 · 共 ' + total + ' 条';
+    }
+
+    first.addEventListener('click', function () { onGoto(1); });
+    prev.addEventListener('click', function () { if (state.page > 1) onGoto(state.page - 1); });
+    next.addEventListener('click', function () { if (state.page < state.totalPages) onGoto(state.page + 1); });
+    last.addEventListener('click', function () { onGoto(state.totalPages); });
+    size.addEventListener('change', function () {
+      onSizeChange(parseInt(this.value, 10) || 20);
+    });
+    return { update: update };
+  }
+
+  const resultsPager = setupPagination(paginationResults, function (n) {
+    pageNum = n;
+    renderFilteredResults(false);
+    const listCard = paginationResults.closest('.list-card');
+    if (listCard) listCard.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, function (sz) {
+    pageSize = sz;
+    pageNum = 1;
+    renderFilteredResults(false);
+  });
 
   function renderResultItem(result, index) {
     const li = document.createElement('li');
@@ -845,19 +931,40 @@
     drawerMagnet.textContent = composeMagnet(result);
 
     drawer.classList.remove('hidden');
+    drawer.classList.remove('closing');
+    if (drawerCloseTimer) {
+      clearTimeout(drawerCloseTimer);
+      drawerCloseTimer = null;
+    }
     drawerMask.classList.remove('hidden');
     document.body.classList.add('drawer-open');
   }
 
+  let drawerCloseTimer = null;
+
   function closeDrawer() {
-    drawer.classList.add('hidden');
+    if (drawer.classList.contains('hidden') || drawer.classList.contains('closing')) return;
+    drawer.classList.add('closing');
     drawerMask.classList.add('hidden');
     document.body.classList.remove('drawer-open');
     drawerResult = null;
+    drawerCloseTimer = setTimeout(function () {
+      drawerCloseTimer = null;
+      drawer.classList.add('hidden');
+      drawer.classList.remove('closing');
+    }, 180);
   }
 
   drawerClose.addEventListener('click', closeDrawer);
   drawerMask.addEventListener('click', closeDrawer);
+
+  // 点击抽屉以外区域收回（不锁定其他区域）
+  document.addEventListener('click', function (e) {
+    if (drawer.classList.contains('hidden')) return;
+    if (e.target.closest('#drawer')) return;
+    if (e.target.closest('.result-row') || e.target.closest('.history-item')) return;
+    closeDrawer();
+  });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !drawer.classList.contains('hidden')) closeDrawer();
   });
@@ -926,6 +1033,8 @@
   }
 
   // ===== 过滤摘要 =====
+  let filterSummaryShown = false;
+
   function collectAllExtensions(results) {
     const Magnet = window.T2M.Magnet;
     const videoExts = new Set();
@@ -974,10 +1083,12 @@
       filterRegexRow.classList.add('hidden');
     }
 
+    filterSummaryShown = true;
     filterSummary.classList.remove('hidden');
   }
 
   function hideFilterSummary() {
+    filterSummaryShown = false;
     filterSummary.classList.add('hidden');
   }
 
@@ -1046,7 +1157,7 @@
 
   // 视频过滤复选框
   chkVideoOnly.addEventListener('change', function () {
-    if (allTorrentResults.length > 0) renderFilteredResults();
+    if (allTorrentResults.length > 0) renderFilteredResults(true);
   });
 
   // tracker 注入 / 输出格式选项：即时重新拼接磁力链接，同步结果、抽屉与历史复制
@@ -1054,7 +1165,7 @@
     for (var i = 0; i < allTorrentResults.length; i++) {
       allTorrentResults[i].magnet = composeMagnet(allTorrentResults[i]);
     }
-    if (allTorrentResults.length > 0) renderFilteredResults();
+    if (allTorrentResults.length > 0) renderFilteredResults(false);
     if (drawerResult) openDrawer(drawerResult);
   }
 
@@ -1065,32 +1176,17 @@
     input.addEventListener('change', onOutputOptionChange);
   });
 
-  // 过滤摘要事件
+  // 过滤摘要事件（后缀标签与正则均为点击即复制）
   filterSummary.addEventListener('click', async function (e) {
     const tag = e.target.closest('.ext-tag');
-    if (!tag) return;
+    const regexCode = e.target.closest('#filterRegex');
+    const target = tag || regexCode;
+    if (!target) return;
     try {
-      await copyToClipboard(tag.dataset.ext);
-      tag.classList.add('copied');
-      setTimeout(function () { tag.classList.remove('copied'); }, 1500);
+      await copyToClipboard(target.textContent);
+      target.classList.add('copied');
+      setTimeout(function () { target.classList.remove('copied'); }, 1500);
     } catch (e) {}
-  });
-
-  btnCopyRegex.addEventListener('click', async function () {
-    const regex = filterRegex.textContent;
-    if (!regex) return;
-    try {
-      await copyToClipboard(regex);
-      btnCopyRegex.textContent = '已复制';
-      btnCopyRegex.classList.add('copied');
-      setTimeout(function () {
-        btnCopyRegex.textContent = '复制';
-        btnCopyRegex.classList.remove('copied');
-      }, 2000);
-    } catch (e) {
-      btnCopyRegex.textContent = '失败';
-      setTimeout(function () { btnCopyRegex.textContent = '复制'; }, 2000);
-    }
   });
 
   // 全局粘贴

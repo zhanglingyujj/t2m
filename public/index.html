@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>T2M - 种子转磁力链接</title>
+  <link rel="icon" type="image/svg+xml" href="t2m-icon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-tab="convert">
@@ -16,7 +17,10 @@
   <div class="app-shell">
     <!-- 左侧导航栏：品牌 + 导航组 + 上传/选项 -->
     <aside class="panel-left">
-      <div class="sidebar-brand">T2M</div>
+      <div class="sidebar-brand">
+        <img src="t2m-icon.svg" alt="T2M" class="brand-icon">
+        <span class="brand-text">T2M</span>
+      </div>
 
       <nav class="sidebar-nav" aria-label="主视图切换">
         <div class="nav-group-title">工作区</div>
@@ -25,7 +29,7 @@
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
           </svg>
-          <span>转换结果</span>
+          <span>转换</span>
         </button>
         <button type="button" class="nav-item" data-view="history" id="navHistory">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon">
@@ -122,7 +126,7 @@
     <!-- 主列：工具栏 + 主内容区 -->
     <div class="main-col">
       <header class="topbar">
-        <div class="topbar-title" id="pageTitle">转换结果</div>
+        <div class="topbar-title" id="pageTitle">转换</div>
         <div class="auth-area">
           <button id="btnLogin" class="btn-login">登录</button>
           <div id="authUser" class="auth-user">
@@ -142,8 +146,8 @@
         <!-- 标签页 + 搜索 + 主操作 -->
         <div class="content-header">
           <div class="view-switch" role="tablist">
-            <button type="button" id="tabResultsView" class="view-tab active" data-view="results">转换结果</button>
-            <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none">历史</button>
+            <button type="button" id="tabResultsView" class="view-tab active" data-view="results" role="tab" aria-selected="true">转换</button>
+            <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none" role="tab" aria-selected="false">历史</button>
           </div>
           <div class="content-header-actions">
             <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
@@ -178,22 +182,22 @@
                 <p>还没有结果。</p>
                 <p>拖入或选择种子后，磁力链接会出现在这里。</p>
               </div>
-            </div>
-
-            <!-- 过滤摘要 -->
-            <div id="filterSummary" class="filter-summary hidden">
-              <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
-              <div class="exts-row">
-                <span class="exts-label">视频后缀：</span>
-                <span id="filterVideoExts" class="exts-tags"></span>
-              </div>
-              <div class="exts-row">
-                <span class="exts-label">非视频后缀：</span>
-                <span id="filterNonVideoExts" class="exts-tags"></span>
-              </div>
-              <div id="filterRegexRow" class="filter-summary-regex hidden">
-                非视频后缀正则: <code id="filterRegex"></code>
-                <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
+              <div id="pagination" class="pagination hidden">
+                <div class="pagination-buttons">
+                  <button type="button" class="pg-btn pg-first">首页</button>
+                  <button type="button" class="pg-btn pg-prev">上一页</button>
+                  <button type="button" class="pg-btn pg-next">下一页</button>
+                  <button type="button" class="pg-btn pg-last">尾页</button>
+                </div>
+                <span class="pagination-info"></span>
+                <label class="pagination-size">每页
+                  <select class="pg-size">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
               </div>
             </div>
           </div>
@@ -208,6 +212,23 @@
               <ul id="historyList" class="history-list">
                 <li class="history-empty">暂无历史记录</li>
               </ul>
+              <div id="paginationHistory" class="pagination hidden">
+                <div class="pagination-buttons">
+                  <button type="button" class="pg-btn pg-first">首页</button>
+                  <button type="button" class="pg-btn pg-prev">上一页</button>
+                  <button type="button" class="pg-btn pg-next">下一页</button>
+                  <button type="button" class="pg-btn pg-last">尾页</button>
+                </div>
+                <span class="pagination-info"></span>
+                <label class="pagination-size">每页
+                  <select class="pg-size">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -230,43 +251,61 @@
                 <div class="stat-row"><span class="stat-label">非视频</span><span class="stat-value" id="statNonVideo">0</span></div>
               </div>
             </div>
+
+            <!-- 过滤摘要（统计卡片下方，宽度对齐） -->
+            <div id="filterSummary" class="filter-summary hidden">
+              <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
+              <div class="exts-row">
+                <span class="exts-label">视频后缀：</span>
+                <span id="filterVideoExts" class="exts-tags"></span>
+              </div>
+              <div class="exts-row">
+                <span class="exts-label">非视频后缀：</span>
+                <span id="filterNonVideoExts" class="exts-tags"></span>
+              </div>
+              <div id="filterRegexRow" class="filter-summary-regex hidden">
+                非视频后缀正则: <code id="filterRegex"></code>
+              </div>
+            </div>
+
+            <!-- 详情抽屉：右栏内滑入卡片（移动端降级为底部弹层） -->
+            <aside id="drawer" class="drawer hidden" aria-label="种子详情">
+              <div class="drawer-header">
+                <h3 class="drawer-title" id="drawerName"></h3>
+                <button id="drawerClose" class="drawer-close" aria-label="关闭详情">✕</button>
+              </div>
+              <div class="drawer-body">
+                <dl class="drawer-kv">
+                  <dt>总大小</dt><dd id="drawerSize"></dd>
+                  <dt>文件数</dt><dd id="drawerFileCount"></dd>
+                  <dt>创建日期</dt><dd id="drawerCreationDate"></dd>
+                </dl>
+                <div class="drawer-section-title" id="drawerTrackerTitle">Tracker</div>
+                <div class="drawer-trackers" id="drawerTrackers"></div>
+                <div class="drawer-section-title">文件列表</div>
+                <ul class="drawer-files" id="drawerFiles"></ul>
+                <div class="drawer-section-title">info_hash</div>
+                <div class="drawer-hash-row">
+                  <code class="drawer-hash" id="drawerHash"></code>
+                  <button id="btnDrawerCopyHash" class="btn-drawer-copy">复制 Hash</button>
+                </div>
+                <div class="drawer-section-title">磁力链接</div>
+                <code class="drawer-magnet" id="drawerMagnet"></code>
+              </div>
+              <div class="drawer-footer">
+                <button id="btnDrawerOpenMagnet" class="btn btn-secondary btn-drawer-footer">一键打开</button>
+                <button id="btnDrawerShareMagnet" class="btn btn-secondary btn-drawer-footer">分享</button>
+                <button id="btnDrawerCopyMagnet" class="btn btn-primary btn-drawer-footer">复制磁力链接</button>
+              </div>
+            </aside>
           </aside>
         </div>
       </main>
     </div>
   </div>
 
-  <!-- 详情抽屉 -->
+  <!-- 详情抽屉遮罩（仅移动端显示） -->
   <div id="drawerMask" class="drawer-mask hidden"></div>
-  <aside id="drawer" class="drawer hidden" aria-label="种子详情">
-    <div class="drawer-header">
-      <h3 class="drawer-title" id="drawerName"></h3>
-      <button id="drawerClose" class="drawer-close" aria-label="关闭详情">✕</button>
-    </div>
-    <div class="drawer-body">
-      <dl class="drawer-kv">
-        <dt>总大小</dt><dd id="drawerSize"></dd>
-        <dt>文件数</dt><dd id="drawerFileCount"></dd>
-        <dt>创建日期</dt><dd id="drawerCreationDate"></dd>
-      </dl>
-      <div class="drawer-section-title" id="drawerTrackerTitle">Tracker</div>
-      <div class="drawer-trackers" id="drawerTrackers"></div>
-      <div class="drawer-section-title">文件列表</div>
-      <ul class="drawer-files" id="drawerFiles"></ul>
-      <div class="drawer-section-title">info_hash</div>
-      <div class="drawer-hash-row">
-        <code class="drawer-hash" id="drawerHash"></code>
-        <button id="btnDrawerCopyHash" class="btn-drawer-copy">复制 Hash</button>
-      </div>
-      <div class="drawer-section-title">磁力链接</div>
-      <code class="drawer-magnet" id="drawerMagnet"></code>
-    </div>
-    <div class="drawer-footer">
-      <button id="btnDrawerOpenMagnet" class="btn btn-secondary btn-drawer-footer">一键打开</button>
-      <button id="btnDrawerShareMagnet" class="btn btn-secondary btn-drawer-footer">分享</button>
-      <button id="btnDrawerCopyMagnet" class="btn btn-primary btn-drawer-footer">复制磁力链接</button>
-    </div>
-  </aside>
 
   <script src="torrent-parser.js"></script>
   <script src="app.js"></script>
