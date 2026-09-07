@@ -13,26 +13,30 @@
     <button type="button" id="tabResults" data-tab="results">结果</button>
   </nav>
 
+  <!-- 全宽顶栏：logo + 登录 -->
+  <header class="topbar">
+    <div class="logo">T2M</div>
+    <div class="auth-area">
+      <button id="btnLogin" class="btn-login">登录</button>
+      <div id="authUser" class="auth-user">
+        <span class="auth-user-name" id="authUsername"></span>
+        <button id="btnLogout" class="btn-logout">退出</button>
+      </div>
+      <div id="loginDropdown" class="login-dropdown">
+        <input type="text" id="loginUser" class="login-field" placeholder="用户名" autocomplete="username">
+        <input type="password" id="loginPass" class="login-field" placeholder="密码" autocomplete="current-password">
+        <div id="loginError" class="login-error"></div>
+        <button id="btnSubmitLogin" class="btn-submit-login">登录</button>
+      </div>
+    </div>
+  </header>
+
   <div class="app-shell">
-    <!-- 左栏：输入与选项 -->
+    <!-- 左栏：输入 + 选项 -->
     <aside class="panel-left">
+      <!-- 输入卡片 -->
       <div class="panel-card">
-        <div class="topbar">
-          <div class="logo">T2M</div>
-          <div class="auth-area">
-            <button id="btnLogin" class="btn-login">登录</button>
-            <div id="authUser" class="auth-user">
-              <span class="auth-user-name" id="authUsername"></span>
-              <button id="btnLogout" class="btn-logout">退出</button>
-            </div>
-            <div id="loginDropdown" class="login-dropdown">
-              <input type="text" id="loginUser" class="login-field" placeholder="用户名" autocomplete="username">
-              <input type="password" id="loginPass" class="login-field" placeholder="密码" autocomplete="current-password">
-              <div id="loginError" class="login-error"></div>
-              <button id="btnSubmitLogin" class="btn-submit-login">登录</button>
-            </div>
-          </div>
-        </div>
+        <div class="card-title">添加种子</div>
 
         <!-- mini 拖拽区（桌面） -->
         <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="拖拽或点击选择种子文件">
@@ -66,9 +70,13 @@
 
         <!-- 拖拽文件名预览气泡 -->
         <div id="dropPreview" class="drop-preview"></div>
+      </div>
 
+      <!-- 选项卡片 -->
+      <div class="panel-card">
+        <div class="card-title">选项</div>
         <div class="opt-section">
-          <div class="opt-title">选项</div>
+          <div class="opt-title">过滤</div>
           <label class="filter-label">
             <input type="checkbox" id="chkVideoOnly" checked>
             <span>仅显示包含视频的磁力链接</span>
@@ -80,7 +88,7 @@
         </div>
 
         <div class="opt-section">
-          <div class="opt-title">输出选项</div>
+          <div class="opt-title">输出</div>
           <label class="filter-label">
             <input type="checkbox" id="chkIncludeDn" checked>
             <span>磁力链接包含名称（dn）</span>
@@ -96,30 +104,15 @@
           </div>
         </div>
       </div>
-
-      <!-- 历史面板（登录后可见） -->
-      <div id="historyPanel" class="history-panel">
-        <div class="panel-card">
-          <div class="history-panel-header">
-            <span class="history-panel-title">转换历史</span>
-          </div>
-          <input type="text" id="historySearch" class="history-search" placeholder="搜索名称或 info hash...">
-          <div class="history-stats">
-            <span>总计 <span class="history-stat-value" id="statTotal">0</span></span>
-            <span>含视频 <span class="history-stat-value" id="statVideo">0</span></span>
-            <span>非视频 <span class="history-stat-value" id="statNonVideo">0</span></span>
-          </div>
-          <ul id="historyList" class="history-list">
-            <li class="history-empty">暂无历史记录</li>
-          </ul>
-        </div>
-      </div>
     </aside>
 
-    <!-- 右栏：结果区（常驻，含空态） -->
+    <!-- 右栏：结果 / 历史 切换 -->
     <main class="panel-right">
       <div class="results-header">
-        <h2 class="results-title">转换结果</h2>
+        <div class="view-switch" role="tablist">
+          <button type="button" id="tabResultsView" class="view-tab active" data-view="results">转换结果</button>
+          <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none">历史</button>
+        </div>
         <button id="btnCopyAll" class="btn-copy-all">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -129,48 +122,59 @@
         </button>
       </div>
 
-      <!-- 空态 -->
-      <div id="emptyState" class="empty-state">
-        <p>还没有结果。</p>
-        <p>拖入或选择种子后，磁力链接会出现在这里。</p>
-      </div>
+      <!-- 转换结果视图 -->
+      <div id="resultsView">
+        <!-- 空态 -->
+        <div id="emptyState" class="empty-state">
+          <p>还没有结果。</p>
+          <p>拖入或选择种子后，磁力链接会出现在这里。</p>
+        </div>
 
-      <!-- 解析中 -->
-      <div id="parseProgress" class="parse-progress hidden">
-        <span id="parseProgressText">解析中…</span>
-        <div class="progress-bar">
-          <div class="progress-bar-inner"></div>
+        <!-- 解析中 -->
+        <div id="parseProgress" class="parse-progress hidden">
+          <span id="parseProgressText">解析中…</span>
+          <div class="progress-bar">
+            <div class="progress-bar-inner"></div>
+          </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div id="status" class="status hidden"></div>
+
+        <ul id="resultList" class="result-list"></ul>
+
+        <!-- 过滤摘要 -->
+        <div id="filterSummary" class="filter-summary hidden">
+          <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
+          <div class="exts-row">
+            <span class="exts-label">视频后缀：</span>
+            <span id="filterVideoExts" class="exts-tags"></span>
+          </div>
+          <div class="exts-row">
+            <span class="exts-label">非视频后缀：</span>
+            <span id="filterNonVideoExts" class="exts-tags"></span>
+          </div>
+          <div id="filterRegexRow" class="filter-summary-regex hidden">
+            非视频后缀正则: <code id="filterRegex"></code>
+            <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
+          </div>
         </div>
       </div>
 
-      <!-- 状态提示 -->
-      <div id="status" class="status hidden"></div>
-
-      <ul id="resultList" class="result-list"></ul>
-
-      <!-- 过滤摘要 -->
-      <div id="filterSummary" class="filter-summary hidden">
-        <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
-        <div class="exts-row">
-          <span class="exts-label">视频后缀：</span>
-          <span id="filterVideoExts" class="exts-tags"></span>
+      <!-- 历史视图（登录后可见，通过卡片切换） -->
+      <div id="historyPanel" class="history-panel hidden">
+        <input type="text" id="historySearch" class="history-search" placeholder="搜索名称或 info hash...">
+        <div class="history-stats">
+          <span>总计 <span class="history-stat-value" id="statTotal">0</span></span>
+          <span>含视频 <span class="history-stat-value" id="statVideo">0</span></span>
+          <span>非视频 <span class="history-stat-value" id="statNonVideo">0</span></span>
         </div>
-        <div class="exts-row">
-          <span class="exts-label">非视频后缀：</span>
-          <span id="filterNonVideoExts" class="exts-tags"></span>
-        </div>
-        <div id="filterRegexRow" class="filter-summary-regex hidden">
-          非视频后缀正则: <code id="filterRegex"></code>
-          <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
-        </div>
+        <ul id="historyList" class="history-list">
+          <li class="history-empty">暂无历史记录</li>
+        </ul>
       </div>
     </main>
   </div>
-
-  <!-- 页脚 -->
-  <footer class="footer">
-    <p>所有处理均在浏览器本地完成，文件不会上传到服务器</p>
-  </footer>
 
   <!-- 详情抽屉 -->
   <div id="drawerMask" class="drawer-mask hidden"></div>

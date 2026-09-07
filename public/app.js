@@ -37,6 +37,9 @@
   const loginError = document.getElementById('loginError');
   const btnSubmitLogin = document.getElementById('btnSubmitLogin');
   const historyPanel = document.getElementById('historyPanel');
+  const resultsView = document.getElementById('resultsView');
+  const tabResultsView = document.getElementById('tabResultsView');
+  const tabHistoryView = document.getElementById('tabHistoryView');
   const historySearch = document.getElementById('historySearch');
   const historyList = document.getElementById('historyList');
   const statTotal = document.getElementById('statTotal');
@@ -172,20 +175,6 @@
   }
 
   /**
-   * 按当前输出选项重拼历史记录的磁力链接
-   */
-  function composeHistoryMagnet(item) {
-    const trackers = trackersFromMagnet(item.magnet || '');
-    const merged = chkInjectTrackers.checked
-      ? window.T2M.Magnet.injectPublicTrackers(trackers)
-      : trackers;
-    return window.T2M.Magnet.buildMagnetLink(item.info_hash, item.name, merged, {
-      includeName: chkIncludeDn.checked,
-      includeTrackers: chkIncludeTr.checked
-    });
-  }
-
-  /**
    * 一键打开：触发 magnet: URI 交给系统客户端处理
    */
   function openMagnet(magnet) {
@@ -237,6 +226,20 @@
     });
   });
 
+  // ===== 右栏视图切换（结果 / 历史） =====
+  function switchView(view) {
+    const isHistory = view === 'history';
+    tabResultsView.classList.toggle('active', !isHistory);
+    tabHistoryView.classList.toggle('active', isHistory);
+    historyPanel.classList.toggle('hidden', !isHistory);
+    resultsView.classList.toggle('hidden', isHistory);
+    btnCopyAll.style.display = isHistory ? 'none' : '';
+  }
+
+  [tabResultsView, tabHistoryView].forEach(function (tab) {
+    tab.addEventListener('click', function () { switchView(tab.dataset.view); });
+  });
+
   // ===== Auth 模块 =====
   async function checkAuthStatus() {
     try {
@@ -256,12 +259,13 @@
       btnLogin.style.display = 'none';
       authUser.classList.add('active');
       authUsername.textContent = data.username || '';
-      historyPanel.classList.add('active');
+      tabHistoryView.style.display = '';
     } else {
       btnLogin.style.display = 'inline-flex';
       authUser.classList.remove('active');
       loginDropdown.classList.remove('active');
-      historyPanel.classList.remove('active');
+      tabHistoryView.style.display = 'none';
+      switchView('results');
     }
   }
 
@@ -416,6 +420,23 @@
     statNonVideo.textContent = nonVideoCount;
   }
 
+  /**
+   * 历史记录转换为抽屉可用的 result 结构（与转换结果逻辑对齐）
+   */
+  function historyToResult(record) {
+    let files = [];
+    try { files = JSON.parse(record.files_json || '[]'); } catch (e) {}
+    return {
+      name: record.name,
+      infoHash: record.info_hash,
+      trackers: trackersFromMagnet(record.magnet || ''),
+      fileList: files.map(function (f) {
+        return { path: f.path || '', size: f.size || f.length || 0 };
+      }),
+      creationDate: null
+    };
+  }
+
   historySearch.addEventListener('input', function () {
     loadHistory(this.value || undefined);
   });
@@ -429,13 +450,7 @@
     var item = e.target.closest('.history-item');
     if (!item) return;
     var record = historyData.find(function (h) { return String(h.id) === item.dataset.id; });
-    var magnet = record ? composeHistoryMagnet(record) : item.dataset.magnet;
-    if (magnet) {
-      copyToClipboard(magnet).then(function () {
-        showStatus('已复制磁力链接: ' + item.dataset.name, '');
-        setTimeout(hideStatus, 2000);
-      });
-    }
+    if (record) openDrawer(historyToResult(record));
   });
 
   // ===== 拖拽增强 =====
