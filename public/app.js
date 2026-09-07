@@ -40,7 +40,13 @@
   const resultsView = document.getElementById('resultsView');
   const tabResultsView = document.getElementById('tabResultsView');
   const tabHistoryView = document.getElementById('tabHistoryView');
-  const historySearch = document.getElementById('historySearch');
+  const historySearch = document.getElementById('globalSearch');
+  const statsResults = document.getElementById('statsResults');
+  const statsHistory = document.getElementById('statsHistory');
+  const statConverted = document.getElementById('statConverted');
+  const statWithVideo = document.getElementById('statWithVideo');
+  const statFiltered = document.getElementById('statFiltered');
+  const statFailed = document.getElementById('statFailed');
   const historyList = document.getElementById('historyList');
   const statTotal = document.getElementById('statTotal');
   const statVideo = document.getElementById('statVideo');
@@ -227,13 +233,19 @@
   });
 
   // ===== 右栏视图切换（结果 / 历史） =====
+  let currentView = 'results';
+
   function switchView(view) {
+    currentView = view;
     const isHistory = view === 'history';
     tabResultsView.classList.toggle('active', !isHistory);
     tabHistoryView.classList.toggle('active', isHistory);
-    historyPanel.classList.toggle('hidden', !isHistory);
+    historyPanel.classList.toggle('hidden', isHistory);
     resultsView.classList.toggle('hidden', isHistory);
-    btnCopyAll.style.display = isHistory ? 'none' : '';
+    statsResults.classList.toggle('hidden', isHistory);
+    statsHistory.classList.toggle('hidden', !isHistory);
+    historySearch.placeholder = isHistory ? '搜索历史记录…' : '搜索转换结果…';
+    btnCopyAll.style.display = isHistory ? 'none' : (resultList.children.length > 0 ? '' : 'none');
   }
 
   [tabResultsView, tabHistoryView].forEach(function (tab) {
@@ -438,7 +450,20 @@
   }
 
   historySearch.addEventListener('input', function () {
-    loadHistory(this.value || undefined);
+    if (currentView === 'history') {
+      loadHistory(this.value || undefined);
+    } else {
+      renderFilteredResults();
+    }
+  });
+
+  // sidebar 分区折叠
+  document.querySelectorAll('.side-section-head').forEach(function (head) {
+    head.addEventListener('click', function () {
+      const section = this.closest('.side-section');
+      const collapsed = section.classList.toggle('collapsed');
+      this.setAttribute('aria-expanded', String(!collapsed));
+    });
   });
 
   historyList.addEventListener('click', function (e) {
@@ -570,6 +595,7 @@
   function renderFilteredResults() {
     const showVideoOnly = chkVideoOnly.checked;
     const Magnet = window.T2M.Magnet;
+    const query = (historySearch.value || '').trim().toLowerCase();
 
     let filtered = allTorrentResults;
     let excluded = [];
@@ -578,6 +604,20 @@
       excluded = allTorrentResults.filter(function (r) { return !Magnet.hasVideoFiles(r.info); });
       filtered = allTorrentResults.filter(function (r) { return Magnet.hasVideoFiles(r.info); });
     }
+
+    const videoCount = filtered.length;
+    if (query) {
+      filtered = filtered.filter(function (r) {
+        return r.name.toLowerCase().includes(query)
+          || (r.infoHash || '').toLowerCase().includes(query);
+      });
+    }
+
+    // 统计面板
+    statConverted.textContent = allTorrentResults.length;
+    statWithVideo.textContent = videoCount;
+    statFiltered.textContent = excluded.length;
+    statFailed.textContent = errorResults.length;
 
     resultList.innerHTML = '';
 
@@ -593,9 +633,13 @@
       emptyState.classList.add('hidden');
     } else {
       btnCopyAll.style.display = 'none';
-      if (allTorrentResults.length > 0) {
+      if (query && allTorrentResults.length > 0) {
+        emptyState.firstElementChild.textContent = '没有匹配「' + escapeHTML(historySearch.value.trim()) + '」的结果。';
+        emptyState.classList.remove('hidden');
+      } else if (allTorrentResults.length > 0) {
         showStatus('已转换 ' + allTorrentResults.length + ' 个种子，但全部不含视频文件，已过滤', 'error');
       } else if (errorResults.length === 0) {
+        emptyState.firstElementChild.textContent = '还没有结果。';
         emptyState.classList.remove('hidden');
       }
     }
@@ -630,9 +674,9 @@
           '<div class="result-meta">' + metaParts.join(' · ') + '</div>' +
         '</div>' +
         '<div class="result-actions">' +
-          '<button class="btn-copy" data-index="' + index + '">复制</button>' +
-          '<button class="btn-copy btn-open" data-index="' + index + '" title="在下载客户端中打开">打开</button>' +
-          (shareSupported ? '<button class="btn-copy btn-share" data-index="' + index + '">分享</button>' : '') +
+          '<button class="btn-action btn-copy" data-index="' + index + '">复制</button>' +
+          '<button class="btn-action btn-open" data-index="' + index + '" title="在下载客户端中打开">打开</button>' +
+          (shareSupported ? '<button class="btn-action btn-share" data-index="' + index + '">分享</button>' : '') +
         '</div>' +
       '</div>';
 
@@ -721,6 +765,7 @@
     drawerResult = result;
     const fileList = result.fileList || [];
     drawerName.textContent = result.name;
+    drawerName.title = result.name;
     drawerSize.textContent = formatSize(getTotalSize(fileList));
     drawerFileCount.textContent = fileList.length + ' 个';
     drawerCreationDate.textContent = window.T2M.Magnet.formatCreationDate(result.creationDate);

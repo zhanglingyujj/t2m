@@ -32,146 +32,192 @@
   </header>
 
   <div class="app-shell">
-    <!-- 左栏：输入 + 选项 -->
+    <!-- 左侧 sidebar：可折叠分区 -->
     <aside class="panel-left">
-      <!-- 输入卡片 -->
-      <div class="panel-card">
-        <div class="card-title">添加种子</div>
-
-        <!-- mini 拖拽区（桌面） -->
-        <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="拖拽或点击选择种子文件">
-          <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
+      <section class="side-section">
+        <button type="button" class="side-section-head" aria-expanded="true">
+          <span class="side-section-title">添加种子</span>
+          <svg class="side-section-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 6 8 10 12 6"/>
           </svg>
-          <p class="drop-text">拖拽 .torrent 到此处</p>
-          <p class="drop-hint">也可以粘贴种子文件</p>
-        </div>
-
-        <div class="btn-group">
-          <button id="btnSelectFiles" class="btn btn-primary btn-block">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
+        </button>
+        <div class="side-section-body">
+          <!-- mini 拖拽区（桌面） -->
+          <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="拖拽或点击选择种子文件">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            选择文件
-          </button>
-          <button id="btnSelectFolder" class="btn btn-secondary btn-block">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            选择文件夹
-          </button>
+            <p class="drop-text">拖拽 .torrent 到此处</p>
+            <p class="drop-hint">也可以粘贴种子文件</p>
+          </div>
+
+          <div class="btn-group">
+            <button id="btnSelectFiles" class="btn btn-primary btn-block">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              选择文件
+            </button>
+            <button id="btnSelectFolder" class="btn btn-secondary btn-block">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              选择文件夹
+            </button>
+          </div>
+
+          <input type="file" id="fileInput" accept=".torrent" multiple hidden>
+          <input type="file" id="folderInput" webkitdirectory hidden>
+
+          <!-- 拖拽文件名预览气泡 -->
+          <div id="dropPreview" class="drop-preview"></div>
         </div>
+      </section>
 
-        <input type="file" id="fileInput" accept=".torrent" multiple hidden>
-        <input type="file" id="folderInput" webkitdirectory hidden>
+      <section class="side-section">
+        <button type="button" class="side-section-head" aria-expanded="true">
+          <span class="side-section-title">选项</span>
+          <svg class="side-section-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 6 8 10 12 6"/>
+          </svg>
+        </button>
+        <div class="side-section-body">
+          <div class="opt-section">
+            <div class="opt-title">过滤</div>
+            <label class="filter-label">
+              <input type="checkbox" id="chkVideoOnly" checked>
+              <span>仅显示包含视频的磁力链接</span>
+            </label>
+            <label class="filter-label">
+              <input type="checkbox" id="chkInjectTrackers" checked>
+              <span>注入公共 tracker</span>
+            </label>
+          </div>
 
-        <!-- 拖拽文件名预览气泡 -->
-        <div id="dropPreview" class="drop-preview"></div>
-      </div>
-
-      <!-- 选项卡片 -->
-      <div class="panel-card">
-        <div class="card-title">选项</div>
-        <div class="opt-section">
-          <div class="opt-title">过滤</div>
-          <label class="filter-label">
-            <input type="checkbox" id="chkVideoOnly" checked>
-            <span>仅显示包含视频的磁力链接</span>
-          </label>
-          <label class="filter-label">
-            <input type="checkbox" id="chkInjectTrackers" checked>
-            <span>注入公共 tracker</span>
-          </label>
-        </div>
-
-        <div class="opt-section">
-          <div class="opt-title">输出</div>
-          <label class="filter-label">
-            <input type="checkbox" id="chkIncludeDn" checked>
-            <span>磁力链接包含名称（dn）</span>
-          </label>
-          <label class="filter-label">
-            <input type="checkbox" id="chkIncludeTr" checked>
-            <span>磁力链接包含 tracker（tr）</span>
-          </label>
-          <div class="opt-hash-format">
-            <span class="opt-hash-label">info hash 格式</span>
-            <label class="filter-label"><input type="radio" name="hashFormat" id="optHashHex" value="hex" checked><span>hex</span></label>
-            <label class="filter-label"><input type="radio" name="hashFormat" id="optHashBase32" value="base32"><span>base32</span></label>
+          <div class="opt-section">
+            <div class="opt-title">输出</div>
+            <label class="filter-label">
+              <input type="checkbox" id="chkIncludeDn" checked>
+              <span>磁力链接包含名称（dn）</span>
+            </label>
+            <label class="filter-label">
+              <input type="checkbox" id="chkIncludeTr" checked>
+              <span>磁力链接包含 tracker（tr）</span>
+            </label>
+            <div class="opt-hash-format">
+              <span class="opt-hash-label">info hash 格式</span>
+              <label class="filter-label"><input type="radio" name="hashFormat" id="optHashHex" value="hex" checked><span>hex</span></label>
+              <label class="filter-label"><input type="radio" name="hashFormat" id="optHashBase32" value="base32"><span>base32</span></label>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     </aside>
 
-    <!-- 右栏：结果 / 历史 切换 -->
+    <!-- 右侧主区：tab bar + 内容 + 统计侧栏 -->
     <main class="panel-right">
-      <div class="results-header">
+      <div class="content-header">
         <div class="view-switch" role="tablist">
           <button type="button" id="tabResultsView" class="view-tab active" data-view="results">转换结果</button>
           <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none">历史</button>
         </div>
-        <button id="btnCopyAll" class="btn-copy-all">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          一键复制全部
-        </button>
-      </div>
-
-      <!-- 转换结果视图 -->
-      <div id="resultsView">
-        <!-- 空态 -->
-        <div id="emptyState" class="empty-state">
-          <p>还没有结果。</p>
-          <p>拖入或选择种子后，磁力链接会出现在这里。</p>
-        </div>
-
-        <!-- 解析中 -->
-        <div id="parseProgress" class="parse-progress hidden">
-          <span id="parseProgressText">解析中…</span>
-          <div class="progress-bar">
-            <div class="progress-bar-inner"></div>
-          </div>
-        </div>
-
-        <!-- 状态提示 -->
-        <div id="status" class="status hidden"></div>
-
-        <ul id="resultList" class="result-list"></ul>
-
-        <!-- 过滤摘要 -->
-        <div id="filterSummary" class="filter-summary hidden">
-          <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
-          <div class="exts-row">
-            <span class="exts-label">视频后缀：</span>
-            <span id="filterVideoExts" class="exts-tags"></span>
-          </div>
-          <div class="exts-row">
-            <span class="exts-label">非视频后缀：</span>
-            <span id="filterNonVideoExts" class="exts-tags"></span>
-          </div>
-          <div id="filterRegexRow" class="filter-summary-regex hidden">
-            非视频后缀正则: <code id="filterRegex"></code>
-            <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
-          </div>
+        <div class="content-header-actions">
+          <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
+          <button id="btnCopyAll" class="btn-copy-all" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            一键复制全部
+          </button>
         </div>
       </div>
 
-      <!-- 历史视图（登录后可见，通过卡片切换） -->
-      <div id="historyPanel" class="history-panel hidden">
-        <input type="text" id="historySearch" class="history-search" placeholder="搜索名称或 info hash...">
-        <div class="history-stats">
-          <span>总计 <span class="history-stat-value" id="statTotal">0</span></span>
-          <span>含视频 <span class="history-stat-value" id="statVideo">0</span></span>
-          <span>非视频 <span class="history-stat-value" id="statNonVideo">0</span></span>
+      <div class="content-body">
+        <!-- 转换结果视图 -->
+        <div id="resultsView" class="content-view">
+          <!-- 空态 -->
+          <div id="emptyState" class="empty-state">
+            <p>还没有结果。</p>
+            <p>拖入或选择种子后，磁力链接会出现在这里。</p>
+          </div>
+
+          <!-- 解析中 -->
+          <div id="parseProgress" class="parse-progress hidden">
+            <span id="parseProgressText">解析中…</span>
+            <div class="progress-bar">
+              <div class="progress-bar-inner"></div>
+            </div>
+          </div>
+
+          <!-- 状态提示 -->
+          <div id="status" class="status hidden"></div>
+
+          <ul id="resultList" class="result-list"></ul>
+
+          <!-- 过滤摘要 -->
+          <div id="filterSummary" class="filter-summary hidden">
+            <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
+            <div class="exts-row">
+              <span class="exts-label">视频后缀：</span>
+              <span id="filterVideoExts" class="exts-tags"></span>
+            </div>
+            <div class="exts-row">
+              <span class="exts-label">非视频后缀：</span>
+              <span id="filterNonVideoExts" class="exts-tags"></span>
+            </div>
+            <div id="filterRegexRow" class="filter-summary-regex hidden">
+              非视频后缀正则: <code id="filterRegex"></code>
+              <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
+            </div>
+          </div>
         </div>
-        <ul id="historyList" class="history-list">
-          <li class="history-empty">暂无历史记录</li>
-        </ul>
+
+        <!-- 历史视图（登录后可见） -->
+        <div id="historyPanel" class="content-view hidden">
+          <ul id="historyList" class="history-list">
+            <li class="history-empty">暂无历史记录</li>
+          </ul>
+        </div>
+
+        <!-- 统计侧栏 -->
+        <aside class="stats-panel">
+          <div id="statsResults" class="stats-group">
+            <div class="stats-card">
+              <div class="stats-value" id="statConverted">0</div>
+              <div class="stats-label">已转换</div>
+            </div>
+            <div class="stats-card">
+              <div class="stats-value" id="statWithVideo">0</div>
+              <div class="stats-label">含视频</div>
+            </div>
+            <div class="stats-card">
+              <div class="stats-value" id="statFiltered">0</div>
+              <div class="stats-label">已过滤</div>
+            </div>
+            <div class="stats-card">
+              <div class="stats-value" id="statFailed">0</div>
+              <div class="stats-label">失败</div>
+            </div>
+          </div>
+          <div id="statsHistory" class="stats-group hidden">
+            <div class="stats-card">
+              <div class="stats-value" id="statTotal">0</div>
+              <div class="stats-label">总计</div>
+            </div>
+            <div class="stats-card">
+              <div class="stats-value" id="statVideo">0</div>
+              <div class="stats-label">含视频</div>
+            </div>
+            <div class="stats-card">
+              <div class="stats-value" id="statNonVideo">0</div>
+              <div class="stats-label">非视频</div>
+            </div>
+          </div>
+        </aside>
       </div>
     </main>
   </div>
