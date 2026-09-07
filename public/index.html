@@ -13,27 +13,29 @@
     <button type="button" id="tabResults" data-tab="results">结果</button>
   </nav>
 
-  <!-- 全宽顶栏：logo + 登录 -->
-  <header class="topbar">
-    <div class="logo">T2M</div>
-    <div class="auth-area">
-      <button id="btnLogin" class="btn-login">登录</button>
-      <div id="authUser" class="auth-user">
-        <span class="auth-user-name" id="authUsername"></span>
-        <button id="btnLogout" class="btn-logout">退出</button>
-      </div>
-      <div id="loginDropdown" class="login-dropdown">
-        <input type="text" id="loginUser" class="login-field" placeholder="用户名" autocomplete="username">
-        <input type="password" id="loginPass" class="login-field" placeholder="密码" autocomplete="current-password">
-        <div id="loginError" class="login-error"></div>
-        <button id="btnSubmitLogin" class="btn-submit-login">登录</button>
-      </div>
-    </div>
-  </header>
-
   <div class="app-shell">
-    <!-- 左侧 sidebar：可折叠分区 -->
+    <!-- 左侧导航栏：品牌 + 导航组 + 上传/选项 -->
     <aside class="panel-left">
+      <div class="sidebar-brand">T2M</div>
+
+      <nav class="sidebar-nav" aria-label="主视图切换">
+        <div class="nav-group-title">工作区</div>
+        <button type="button" class="nav-item active" data-view="results">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span>转换结果</span>
+        </button>
+        <button type="button" class="nav-item" data-view="history" id="navHistory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>历史</span>
+        </button>
+      </nav>
+
       <section class="side-section">
         <button type="button" class="side-section-head" aria-expanded="true">
           <span class="side-section-title">添加种子</span>
@@ -117,109 +119,121 @@
       </section>
     </aside>
 
-    <!-- 右侧主区：tab bar + 内容 + 统计侧栏 -->
-    <main class="panel-right">
-      <div class="content-header">
-        <div class="view-switch" role="tablist">
-          <button type="button" id="tabResultsView" class="view-tab active" data-view="results">转换结果</button>
-          <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none">历史</button>
-        </div>
-        <div class="content-header-actions">
-          <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
-          <button id="btnCopyAll" class="btn-copy-all" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-            一键复制全部
-          </button>
-        </div>
-      </div>
-
-      <div class="content-body">
-        <!-- 转换结果视图 -->
-        <div id="resultsView" class="content-view">
-          <!-- 空态 -->
-          <div id="emptyState" class="empty-state">
-            <p>还没有结果。</p>
-            <p>拖入或选择种子后，磁力链接会出现在这里。</p>
+    <!-- 主列：工具栏 + 主内容区 -->
+    <div class="main-col">
+      <header class="topbar">
+        <div class="topbar-title" id="pageTitle">转换结果</div>
+        <div class="auth-area">
+          <button id="btnLogin" class="btn-login">登录</button>
+          <div id="authUser" class="auth-user">
+            <span class="auth-user-name" id="authUsername"></span>
+            <button id="btnLogout" class="btn-logout">退出</button>
           </div>
-
-          <!-- 解析中 -->
-          <div id="parseProgress" class="parse-progress hidden">
-            <span id="parseProgressText">解析中…</span>
-            <div class="progress-bar">
-              <div class="progress-bar-inner"></div>
-            </div>
+          <div id="loginDropdown" class="login-dropdown">
+            <input type="text" id="loginUser" class="login-field" placeholder="用户名" autocomplete="username">
+            <input type="password" id="loginPass" class="login-field" placeholder="密码" autocomplete="current-password">
+            <div id="loginError" class="login-error"></div>
+            <button id="btnSubmitLogin" class="btn-submit-login">登录</button>
           </div>
+        </div>
+      </header>
 
-          <!-- 状态提示 -->
-          <div id="status" class="status hidden"></div>
-
-          <ul id="resultList" class="result-list"></ul>
-
-          <!-- 过滤摘要 -->
-          <div id="filterSummary" class="filter-summary hidden">
-            <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
-            <div class="exts-row">
-              <span class="exts-label">视频后缀：</span>
-              <span id="filterVideoExts" class="exts-tags"></span>
-            </div>
-            <div class="exts-row">
-              <span class="exts-label">非视频后缀：</span>
-              <span id="filterNonVideoExts" class="exts-tags"></span>
-            </div>
-            <div id="filterRegexRow" class="filter-summary-regex hidden">
-              非视频后缀正则: <code id="filterRegex"></code>
-              <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
-            </div>
+      <main class="panel-right">
+        <!-- 标签页 + 搜索 + 主操作 -->
+        <div class="content-header">
+          <div class="view-switch" role="tablist">
+            <button type="button" id="tabResultsView" class="view-tab active" data-view="results">转换结果</button>
+            <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none">历史</button>
+          </div>
+          <div class="content-header-actions">
+            <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
+            <button id="btnCopyAll" class="btn btn-primary btn-copy-all" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              一键复制全部
+            </button>
           </div>
         </div>
 
-        <!-- 历史视图（登录后可见） -->
-        <div id="historyPanel" class="content-view hidden">
-          <ul id="historyList" class="history-list">
-            <li class="history-empty">暂无历史记录</li>
-          </ul>
-        </div>
+        <div class="content-body">
+          <!-- 转换结果视图 -->
+          <div id="resultsView" class="content-view">
+            <div id="status" class="status hidden"></div>
+            <div id="parseProgress" class="parse-progress hidden">
+              <span id="parseProgressText">解析中…</span>
+              <div class="progress-bar">
+                <div class="progress-bar-inner"></div>
+              </div>
+            </div>
 
-        <!-- 统计侧栏 -->
-        <aside class="stats-panel">
-          <div id="statsResults" class="stats-group">
-            <div class="stats-card">
-              <div class="stats-value" id="statConverted">0</div>
-              <div class="stats-label">已转换</div>
+            <div class="card list-card">
+              <div class="card-header">
+                <span class="card-title">转换结果</span>
+                <span class="card-count" id="resultCount"></span>
+              </div>
+              <ul id="resultList" class="result-list"></ul>
+              <div id="emptyState" class="empty-state">
+                <p>还没有结果。</p>
+                <p>拖入或选择种子后，磁力链接会出现在这里。</p>
+              </div>
             </div>
-            <div class="stats-card">
-              <div class="stats-value" id="statWithVideo">0</div>
-              <div class="stats-label">含视频</div>
-            </div>
-            <div class="stats-card">
-              <div class="stats-value" id="statFiltered">0</div>
-              <div class="stats-label">已过滤</div>
-            </div>
-            <div class="stats-card">
-              <div class="stats-value" id="statFailed">0</div>
-              <div class="stats-label">失败</div>
-            </div>
-          </div>
-          <div id="statsHistory" class="stats-group hidden">
-            <div class="stats-card">
-              <div class="stats-value" id="statTotal">0</div>
-              <div class="stats-label">总计</div>
-            </div>
-            <div class="stats-card">
-              <div class="stats-value" id="statVideo">0</div>
-              <div class="stats-label">含视频</div>
-            </div>
-            <div class="stats-card">
-              <div class="stats-value" id="statNonVideo">0</div>
-              <div class="stats-label">非视频</div>
+
+            <!-- 过滤摘要 -->
+            <div id="filterSummary" class="filter-summary hidden">
+              <div class="filter-summary-header"><span id="filterHeaderText"></span></div>
+              <div class="exts-row">
+                <span class="exts-label">视频后缀：</span>
+                <span id="filterVideoExts" class="exts-tags"></span>
+              </div>
+              <div class="exts-row">
+                <span class="exts-label">非视频后缀：</span>
+                <span id="filterNonVideoExts" class="exts-tags"></span>
+              </div>
+              <div id="filterRegexRow" class="filter-summary-regex hidden">
+                非视频后缀正则: <code id="filterRegex"></code>
+                <button id="btnCopyRegex" class="btn-copy-regex">复制</button>
+              </div>
             </div>
           </div>
-        </aside>
-      </div>
-    </main>
+
+          <!-- 历史视图（登录后可见） -->
+          <div id="historyPanel" class="content-view hidden">
+            <div class="card list-card">
+              <div class="card-header">
+                <span class="card-title">历史记录</span>
+                <span class="card-count" id="historyCount"></span>
+              </div>
+              <ul id="historyList" class="history-list">
+                <li class="history-empty">暂无历史记录</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 右侧辅助栏 -->
+          <aside class="stats-panel">
+            <div id="statsResults" class="card stats-card">
+              <div class="card-header"><span class="card-title">统计</span></div>
+              <div class="stats-rows">
+                <div class="stat-row"><span class="stat-label">已转换</span><span class="stat-value" id="statConverted">0</span></div>
+                <div class="stat-row"><span class="stat-label">含视频</span><span class="stat-value" id="statWithVideo">0</span></div>
+                <div class="stat-row"><span class="stat-label">已过滤</span><span class="stat-value" id="statFiltered">0</span></div>
+                <div class="stat-row"><span class="stat-label">失败</span><span class="stat-value" id="statFailed">0</span></div>
+              </div>
+            </div>
+            <div id="statsHistory" class="card stats-card hidden">
+              <div class="card-header"><span class="card-title">统计</span></div>
+              <div class="stats-rows">
+                <div class="stat-row"><span class="stat-label">总计</span><span class="stat-value" id="statTotal">0</span></div>
+                <div class="stat-row"><span class="stat-label">含视频</span><span class="stat-value" id="statVideo">0</span></div>
+                <div class="stat-row"><span class="stat-label">非视频</span><span class="stat-value" id="statNonVideo">0</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
   </div>
 
   <!-- 详情抽屉 -->

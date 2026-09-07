@@ -41,6 +41,10 @@
   const tabResultsView = document.getElementById('tabResultsView');
   const tabHistoryView = document.getElementById('tabHistoryView');
   const historySearch = document.getElementById('globalSearch');
+  const pageTitle = document.getElementById('pageTitle');
+  const resultCount = document.getElementById('resultCount');
+  const historyCount = document.getElementById('historyCount');
+  const navHistory = document.getElementById('navHistory');
   const statsResults = document.getElementById('statsResults');
   const statsHistory = document.getElementById('statsHistory');
   const statConverted = document.getElementById('statConverted');
@@ -245,11 +249,19 @@
     statsResults.classList.toggle('hidden', isHistory);
     statsHistory.classList.toggle('hidden', !isHistory);
     historySearch.placeholder = isHistory ? '搜索历史记录…' : '搜索转换结果…';
+    pageTitle.textContent = isHistory ? '历史' : '转换结果';
+    document.querySelectorAll('.nav-item[data-view]').forEach(function (item) {
+      item.classList.toggle('active', item.dataset.view === view);
+    });
     btnCopyAll.style.display = isHistory ? 'none' : (resultList.children.length > 0 ? '' : 'none');
   }
 
   [tabResultsView, tabHistoryView].forEach(function (tab) {
     tab.addEventListener('click', function () { switchView(tab.dataset.view); });
+  });
+
+  document.querySelectorAll('.nav-item[data-view]').forEach(function (item) {
+    item.addEventListener('click', function () { switchView(item.dataset.view); });
   });
 
   // ===== Auth 模块 =====
@@ -272,11 +284,13 @@
       authUser.classList.add('active');
       authUsername.textContent = data.username || '';
       tabHistoryView.style.display = '';
+      navHistory.style.display = '';
     } else {
       btnLogin.style.display = 'inline-flex';
       authUser.classList.remove('active');
       loginDropdown.classList.remove('active');
       tabHistoryView.style.display = 'none';
+      navHistory.style.display = 'none';
       switchView('results');
     }
   }
@@ -428,6 +442,7 @@
       if (hasVideo) videoCount++; else nonVideoCount++;
     }
     statTotal.textContent = data.length;
+    historyCount.textContent = data.length > 0 ? data.length + ' 条' : '';
     statVideo.textContent = videoCount;
     statNonVideo.textContent = nonVideoCount;
   }
@@ -649,6 +664,8 @@
       resultList.appendChild(renderErrorItem(errorResults[k]));
     }
 
+    resultCount.textContent = resultList.children.length > 0 ? resultList.children.length + ' 条' : '';
+
     if (showVideoOnly) {
       renderFilterSummary(allTorrentResults, excluded);
     } else {
@@ -675,8 +692,15 @@
         '</div>' +
         '<div class="result-actions">' +
           '<button class="btn-action btn-copy" data-index="' + index + '">复制</button>' +
-          '<button class="btn-action btn-open" data-index="' + index + '" title="在下载客户端中打开">打开</button>' +
-          (shareSupported ? '<button class="btn-action btn-share" data-index="' + index + '">分享</button>' : '') +
+          '<div class="more-menu">' +
+            '<button class="btn-action btn-more" aria-label="更多操作" title="更多操作">' +
+              '<svg viewBox="0 0 24 24" fill="currentColor" class="more-dots"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>' +
+            '</button>' +
+            '<div class="more-dropdown">' +
+              '<button class="more-item btn-open" data-index="' + index + '">打开</button>' +
+              (shareSupported ? '<button class="more-item btn-share" data-index="' + index + '">分享</button>' : '') +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>';
 
@@ -707,6 +731,29 @@
     });
   }
 
+  function closeAllMoreMenus() {
+    document.querySelectorAll('.more-menu.open').forEach(function (m) {
+      m.classList.remove('open');
+    });
+  }
+
+  // 行内「更多」下拉菜单
+  resultList.addEventListener('click', function (e) {
+    const moreBtn = e.target.closest('.btn-more');
+    if (!moreBtn) return;
+    e.stopPropagation();
+    const menu = moreBtn.closest('.more-menu');
+    document.querySelectorAll('.more-menu.open').forEach(function (m) {
+      if (m !== menu) m.classList.remove('open');
+    });
+    menu.classList.toggle('open');
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.more-menu')) return;
+    closeAllMoreMenus();
+  });
+
   function bindCopyButtons(magnets) {
     const buttons = resultList.querySelectorAll('.btn-copy');
     buttons.forEach(function (btn) {
@@ -714,6 +761,7 @@
         e.stopPropagation();
         const index = parseInt(this.dataset.index);
         const magnet = composeMagnet(magnets[index]);
+        closeAllMoreMenus();
         try {
           await copyToClipboard(magnet);
           this.textContent = '已复制';
@@ -739,6 +787,7 @@
         e.stopPropagation();
         const index = parseInt(this.dataset.index);
         if (results[index]) openMagnet(composeMagnet(results[index]));
+        closeAllMoreMenus();
       });
     });
   }
@@ -751,6 +800,7 @@
         const index = parseInt(this.dataset.index);
         const result = results[index];
         if (!result) return;
+        closeAllMoreMenus();
         try {
           await shareMagnet(result.name, composeMagnet(result));
         } catch (err) {}
