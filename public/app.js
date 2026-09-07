@@ -244,7 +244,7 @@
     const isHistory = view === 'history';
     tabResultsView.classList.toggle('active', !isHistory);
     tabHistoryView.classList.toggle('active', isHistory);
-    historyPanel.classList.toggle('hidden', isHistory);
+    historyPanel.classList.toggle('hidden', !isHistory);
     resultsView.classList.toggle('hidden', isHistory);
     statsResults.classList.toggle('hidden', isHistory);
     statsHistory.classList.toggle('hidden', !isHistory);
