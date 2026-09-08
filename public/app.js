@@ -142,32 +142,22 @@
   }
 
   /**
-   * 当前 info hash 显示/复制格式
+   * 读输出选项（薄 adapter：DOM → plain object）
    */
-  function currentHashFormat() {
+  function readOutputOptions() {
     const checked = document.querySelector('input[name="hashFormat"]:checked');
-    return checked ? checked.value : 'hex';
+    return {
+      injectTrackers: chkInjectTrackers.checked,
+      includeName: chkIncludeDn.checked,
+      includeTrackers: chkIncludeTr.checked,
+      hashFormat: checked ? checked.value : 'hex'
+    };
   }
 
-  function formatHash(infoHash) {
-    return currentHashFormat() === 'base32'
+  function formatHash(infoHash, format) {
+    return format === 'base32'
       ? window.T2M.Magnet.hexToBase32(infoHash)
       : infoHash;
-  }
-
-  /**
-   * 按当前注入开关与输出选项拼接磁力链接
-   * @param {{infoHash: string, name: string, trackers: string[]}} result
-   * @returns {string}
-   */
-  function composeMagnet(result) {
-    const trackers = chkInjectTrackers.checked
-      ? window.T2M.Magnet.injectPublicTrackers(result.trackers)
-      : result.trackers;
-    return window.T2M.Magnet.buildMagnetLink(result.infoHash, result.name, trackers, {
-      includeName: chkIncludeDn.checked,
-      includeTrackers: chkIncludeTr.checked
-    });
   }
 
   /**
@@ -179,13 +169,6 @@
 
   async function shareMagnet(name, magnet) {
     await navigator.share({ title: name, text: magnet });
-  }
-
-  /**
-   * 计算文件列表总大小
-   */
-  function getTotalSize(fileList) {
-    return fileList.reduce(function (sum, f) { return sum + (f.size || 0); }, 0);
   }
 
   // ===== 移动端页签 =====
@@ -332,21 +315,20 @@
     } catch (e) {}
   }
 
-  async function saveHistory(name, infoHash, magnet, files, trackers) {
+  async function saveHistory(view) {
     if (!isAuthenticated) return;
     try {
-      const totalSize = getTotalSize(files);
       await fetch('/api/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name,
-          infoHash: infoHash,
-          magnet: magnet,
-          fileCount: files.length,
-          totalSize: totalSize,
-          files: files,
-          trackers: trackers || []
+          name: view.name,
+          infoHash: view.infoHash,
+          magnet: window.T2M.Magnet.composeMagnet(view, readOutputOptions()),
+          fileCount: view.files.length,
+          totalSize: view.totalSize,
+          files: view.files,
+          trackers: view.trackers
         })
       });
       loadHistory(historySearch.value || undefined);
@@ -527,7 +509,6 @@
       try {
         const fileData = await readFileAsArrayBuffer(file);
         const result = await window.T2M.Magnet.convertTorrent(fileData, file.name);
-        result.magnet = composeMagnet(result);
         allTorrentResults.push(result);
         successCount++;
       } catch (err) {
@@ -555,7 +536,7 @@
       // 保存历史
       for (var j = 0; j < allTorrentResults.length; j++) {
         var r = allTorrentResults[j];
-        saveHistory(r.name, r.infoHash, r.magnet, r.files, r.trackers);
+        saveHistory(r);
       }
     }
   }
@@ -690,7 +671,7 @@
     const metaParts = [];
     if (files.length > 0) metaParts.push(files.length + ' 个文件');
     if (totalSize > 0) metaParts.push(formatSize(totalSize));
-    metaParts.push(formatHash(result.infoHash).substring(0, 12) + '…');
+    metaParts.push(formatHash(result.infoHash, readOutputOptions().hashFormat).substring(0, 12) + '…');
 
     li.innerHTML =
       '<div class="result-row" data-index="' + index + '">' +
@@ -768,7 +749,7 @@
       btn.addEventListener('click', async function (e) {
         e.stopPropagation();
         const index = parseInt(this.dataset.index);
-        const magnet = composeMagnet(magnets[index]);
+        const magnet = window.T2M.Magnet.composeMagnet(magnets[index], readOutputOptions());
         closeAllMoreMenus();
         try {
           await copyToClipboard(magnet);
@@ -794,7 +775,7 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         const index = parseInt(this.dataset.index);
-        if (results[index]) openMagnet(composeMagnet(results[index]));
+        if (results[index]) openMagnet(window.T2M.Magnet.composeMagnet(results[index], readOutputOptions()));
         closeAllMoreMenus();
       });
     });
@@ -810,7 +791,7 @@
         if (!result) return;
         closeAllMoreMenus();
         try {
-          await shareMagnet(result.name, composeMagnet(result));
+          await shareMagnet(result.name, window.T2M.Magnet.composeMagnet(result, readOutputOptions()));
         } catch (err) {}
       });
     });
@@ -828,10 +809,11 @@
     drawerFileCount.textContent = files.length + ' 个';
     drawerCreationDate.textContent = window.T2M.Magnet.formatCreationDate(result.creationDate);
 
-    const trackers = chkInjectTrackers.checked
+    const options = readOutputOptions();
+    const trackers = options.injectTrackers
       ? window.T2M.Magnet.injectPublicTrackers(result.trackers)
       : result.trackers;
-    drawerTrackerTitle.textContent = chkInjectTrackers.checked
+    drawerTrackerTitle.textContent = options.injectTrackers
       ? 'Tracker（' + (result.trackers || []).length + ' + 注入 ' + (trackers.length - (result.trackers || []).length) + '）'
       : 'Tracker（' + (result.trackers || []).length + '）';
     drawerTrackers.innerHTML = trackers.length > 0
@@ -849,8 +831,8 @@
           '</li>';
         }).join('')
       : '<li class="drawer-file-item"><span class="drawer-file-path">（无文件信息）</span></li>';
-    drawerHash.textContent = formatHash(result.infoHash);
-    drawerMagnet.textContent = composeMagnet(result);
+    drawerHash.textContent = formatHash(result.infoHash, options.hashFormat);
+    drawerMagnet.textContent = window.T2M.Magnet.composeMagnet(result, options);
 
     drawer.classList.remove('hidden');
     drawer.classList.remove('closing');
@@ -894,7 +876,7 @@
   btnDrawerCopyMagnet.addEventListener('click', async function () {
     if (!drawerResult) return;
     try {
-      await copyToClipboard(composeMagnet(drawerResult));
+      await copyToClipboard(window.T2M.Magnet.composeMagnet(drawerResult, readOutputOptions()));
       this.textContent = '已复制';
       setTimeout(function () { btnDrawerCopyMagnet.textContent = '复制磁力链接'; }, 2000);
     } catch (err) {
@@ -904,20 +886,20 @@
   });
 
   btnDrawerOpenMagnet.addEventListener('click', function () {
-    if (drawerResult) openMagnet(composeMagnet(drawerResult));
+    if (drawerResult) openMagnet(window.T2M.Magnet.composeMagnet(drawerResult, readOutputOptions()));
   });
 
   btnDrawerShareMagnet.addEventListener('click', async function () {
     if (!drawerResult) return;
     try {
-      await shareMagnet(drawerResult.name, composeMagnet(drawerResult));
+      await shareMagnet(drawerResult.name, window.T2M.Magnet.composeMagnet(drawerResult, readOutputOptions()));
     } catch (err) {}
   });
 
   btnDrawerCopyHash.addEventListener('click', async function () {
     if (!drawerResult) return;
     try {
-      await copyToClipboard(formatHash(drawerResult.infoHash));
+      await copyToClipboard(formatHash(drawerResult.infoHash, readOutputOptions().hashFormat));
       this.textContent = '已复制';
       this.classList.add('copied');
       setTimeout(function () {
@@ -937,7 +919,8 @@
       ? allTorrentResults.filter(function (r) { return r.hasVideo; })
       : allTorrentResults;
     if (magnets.length === 0) return;
-    const allMagnets = magnets.map(function (r) { return composeMagnet(r); }).join('\n');
+    const options = readOutputOptions();
+    const allMagnets = magnets.map(function (r) { return window.T2M.Magnet.composeMagnet(r, options); }).join('\n');
     try {
       await copyToClipboard(allMagnets);
       const originalHTML = btnCopyAll.innerHTML;
@@ -1083,9 +1066,6 @@
 
   // tracker 注入 / 输出格式选项：即时重新拼接磁力链接，同步结果、抽屉与历史复制
   function onOutputOptionChange() {
-    for (var i = 0; i < allTorrentResults.length; i++) {
-      allTorrentResults[i].magnet = composeMagnet(allTorrentResults[i]);
-    }
     if (allTorrentResults.length > 0) renderFilteredResults(false);
     if (drawerResult) openDrawer(drawerResult);
   }

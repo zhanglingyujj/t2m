@@ -389,6 +389,23 @@ window.T2M.Bencode = (function () {
   }
 
   /**
+   * 按输出选项拼装磁力链接（纯函数，选项为显式参数）
+   * @param {{name: string, infoHash: string, trackers: string[]}} view - torrentView
+   * @param {{injectTrackers?: boolean, includeName?: boolean, includeTrackers?: boolean}} [options]
+   * @returns {string} 磁力链接
+   */
+  function composeMagnet(view, options) {
+    const opts = options || {};
+    const trackers = opts.injectTrackers
+      ? injectPublicTrackers(view.trackers)
+      : view.trackers;
+    return buildMagnetLink(view.infoHash, view.name, trackers, {
+      includeName: opts.includeName,
+      includeTrackers: opts.includeTrackers
+    });
+  }
+
+  /**
    * 解析单个种子文件，返回归一化的种子视图 torrentView
    * （单文件/多文件布局差异在模块内消化，调用方不接触原始 info 字典）
    * @param {ArrayBuffer} fileData - 种子文件内容
@@ -446,7 +463,7 @@ window.T2M.Bencode = (function () {
   }
 
   window.T2M.Magnet = {
-    convertTorrent, buildView, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
+    convertTorrent, buildView, composeMagnet, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
     PUBLIC_TRACKERS, injectPublicTrackers, formatCreationDate, VIDEO_EXTENSIONS,
     hexToBase32
   };

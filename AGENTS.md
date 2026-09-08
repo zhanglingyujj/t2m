@@ -66,7 +66,7 @@ T2M/
 
 | 文件 | 职责 |
 |------|------|
-| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，组装 torrentView（buildView，含 files/totalSize/extensions/hasVideo 派生字段），构造磁力链接（dn/tr 可选，公共 tracker 注入，hash base32 转换） |
+| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，组装 torrentView（buildView，含 files/totalSize/extensions/hasVideo 派生字段），拼装磁力链接（composeMagnet，输出选项为显式参数；dn/tr 可选，公共 tracker 注入，hash base32 转换） |
 | `public/history-adapter.js` | D1 历史行 → torrentView 适配器：tracker 优先读 trackers_json，旧行回退 magnet 反解 |
 | `public/app.js` | 拖拽/文件选择处理，批量解析，结果渲染，复制/分享/一键打开，输出选项，抽屉详情，历史与登录 |
 | `public/index.html` | 页面结构与语义标签（双栏工作台 + 侧滑抽屉 + 移动端页签） |
