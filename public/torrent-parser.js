@@ -366,6 +366,29 @@ window.T2M.Bencode = (function () {
   }
 
   /**
+   * torrentView 视图工厂：从部分字段补全派生字段
+   * （fresh 解析与历史 adapter 共用的组装 seam）
+   * @param {{name: string, infoHash: string, trackers?: string[], creationDate?: number|null, files?: {path: string, size: number}[]}} partial
+   * @returns {{name: string, infoHash: string, trackers: string[], creationDate: number|null, files: {path: string, size: number}[], totalSize: number, extensions: string[], hasVideo: boolean}}
+   */
+  function buildView(partial) {
+    const files = partial.files || [];
+    const extensions = getExtensionsFromFiles(files);
+    const totalSize = files.reduce(function (sum, f) { return sum + (f.size || 0); }, 0);
+
+    return {
+      name: partial.name,
+      infoHash: partial.infoHash,
+      trackers: partial.trackers || [],
+      creationDate: partial.creationDate != null ? partial.creationDate : null,
+      files,
+      totalSize,
+      extensions,
+      hasVideo: extensions.some(function (e) { return VIDEO_EXTENSIONS.has(e); })
+    };
+  }
+
+  /**
    * 解析单个种子文件，返回归一化的种子视图 torrentView
    * （单文件/多文件布局差异在模块内消化，调用方不接触原始 info 字典）
    * @param {ArrayBuffer} fileData - 种子文件内容
@@ -416,19 +439,14 @@ window.T2M.Bencode = (function () {
       : null;
 
     // 归一化种子视图
-    const files = normalizeFiles(torrent.info);
-    const extensions = getExtensionsFromFiles(files);
-    const totalSize = files.reduce(function (sum, f) { return sum + (f.size || 0); }, 0);
-
-    return {
+    return buildView({
       name, infoHash, trackers, creationDate,
-      files, totalSize, extensions,
-      hasVideo: extensions.some(function (e) { return VIDEO_EXTENSIONS.has(e); })
-    };
+      files: normalizeFiles(torrent.info)
+    });
   }
 
   window.T2M.Magnet = {
-    convertTorrent, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
+    convertTorrent, buildView, buildMagnetLink, computeInfoHash, extractInfoRawBytes,
     PUBLIC_TRACKERS, injectPublicTrackers, formatCreationDate, VIDEO_EXTENSIONS,
     hexToBase32
   };
