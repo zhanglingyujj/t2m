@@ -198,25 +198,6 @@
   }
 
   /**
-   * 提取种子文件列表
-   */
-  function extractFileList(info) {
-    if (!info) return [];
-    if (info.files && Array.isArray(info.files)) {
-      return info.files.map(function (f) {
-        return {
-          path: f.path ? f.path.join('/') : '',
-          size: f.length
-        };
-      });
-    }
-    if (info.name) {
-      return [{ path: info.name, size: info.length }];
-    }
-    return [];
-  }
-
-  /**
    * 计算文件列表总大小
    */
   function getTotalSize(fileList) {
@@ -474,7 +455,7 @@
       name: record.name,
       infoHash: record.info_hash,
       trackers: trackersFromMagnet(record.magnet || ''),
-      fileList: files.map(function (f) {
+      files: files.map(function (f) {
         return { path: f.path || '', size: f.size || f.length || 0 };
       }),
       creationDate: null
@@ -589,7 +570,6 @@
       try {
         const fileData = await readFileAsArrayBuffer(file);
         const result = await window.T2M.Magnet.convertTorrent(fileData, file.name);
-        result.fileList = extractFileList(result.info);
         result.magnet = composeMagnet(result);
         allTorrentResults.push(result);
         successCount++;
@@ -618,7 +598,7 @@
       // 保存历史
       for (var j = 0; j < allTorrentResults.length; j++) {
         var r = allTorrentResults[j];
-        saveHistory(r.name, r.infoHash, r.magnet, r.fileList);
+        saveHistory(r.name, r.infoHash, r.magnet, r.files);
       }
     }
   }
@@ -627,15 +607,14 @@
   function renderFilteredResults(resetPage) {
     if (resetPage) pageNum = 1;
     const showVideoOnly = chkVideoOnly.checked;
-    const Magnet = window.T2M.Magnet;
     const query = (historySearch.value || '').trim().toLowerCase();
 
     let filtered = allTorrentResults;
     let excluded = [];
 
     if (showVideoOnly) {
-      excluded = allTorrentResults.filter(function (r) { return !Magnet.hasVideoFiles(r.info); });
-      filtered = allTorrentResults.filter(function (r) { return Magnet.hasVideoFiles(r.info); });
+      excluded = allTorrentResults.filter(function (r) { return !r.hasVideo; });
+      filtered = allTorrentResults.filter(function (r) { return r.hasVideo; });
     }
 
     const videoCount = filtered.length;
@@ -749,10 +728,10 @@
     const li = document.createElement('li');
     li.className = 'result-item';
 
-    const fileList = result.fileList || [];
-    const totalSize = getTotalSize(fileList);
+    const files = result.files || [];
+    const totalSize = result.totalSize || 0;
     const metaParts = [];
-    if (fileList.length > 0) metaParts.push(fileList.length + ' 个文件');
+    if (files.length > 0) metaParts.push(files.length + ' 个文件');
     if (totalSize > 0) metaParts.push(formatSize(totalSize));
     metaParts.push(formatHash(result.infoHash).substring(0, 12) + '…');
 
@@ -885,11 +864,11 @@
 
   function openDrawer(result) {
     drawerResult = result;
-    const fileList = result.fileList || [];
+    const files = result.files || [];
     drawerName.textContent = result.name;
     drawerName.title = result.name;
-    drawerSize.textContent = formatSize(getTotalSize(fileList));
-    drawerFileCount.textContent = fileList.length + ' 个';
+    drawerSize.textContent = formatSize(getTotalSize(files));
+    drawerFileCount.textContent = files.length + ' 个';
     drawerCreationDate.textContent = window.T2M.Magnet.formatCreationDate(result.creationDate);
 
     const trackers = chkInjectTrackers.checked
@@ -905,8 +884,8 @@
         }).join('')
       : '<span class="tracker-empty">（无）</span>';
 
-    drawerFiles.innerHTML = fileList.length > 0
-      ? fileList.map(function (f) {
+    drawerFiles.innerHTML = files.length > 0
+      ? files.map(function (f) {
           return '<li class="drawer-file-item">' +
             '<span class="drawer-file-path">' + escapeHTML(f.path) + '</span>' +
             '<span class="drawer-file-size">' + formatSize(f.size) + '</span>' +
@@ -997,9 +976,8 @@
   // ===== 一键复制全部 =====
   async function copyAll() {
     const showVideoOnly = chkVideoOnly.checked;
-    const Magnet = window.T2M.Magnet;
     const magnets = showVideoOnly
-      ? allTorrentResults.filter(function (r) { return Magnet.hasVideoFiles(r.info); })
+      ? allTorrentResults.filter(function (r) { return r.hasVideo; })
       : allTorrentResults;
     if (magnets.length === 0) return;
     const allMagnets = magnets.map(function (r) { return composeMagnet(r); }).join('\n');
@@ -1027,7 +1005,7 @@
     const nonVideoExts = new Set();
 
     for (var i = 0; i < results.length; i++) {
-      const exts = Magnet.getFileExtensions(results[i].info);
+      const exts = results[i].extensions || [];
       for (var j = 0; j < exts.length; j++) {
         if (Magnet.VIDEO_EXTENSIONS.has(exts[j])) {
           videoExts.add(exts[j]);
