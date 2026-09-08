@@ -20,6 +20,7 @@
 
 - 前端：纯 HTML/CSS/JS，零依赖
 - 解析：浏览器端 Bencode 解码 + Web Crypto API 计算 SHA-1
+- 测试：node:test（Node 内置，无额外依赖）
 - 认证：JWT（HS256） + httpOnly cookie
 - 存储：Cloudflare D1（历史记录）
 - 部署：Cloudflare Workers 静态站点 + API
@@ -28,6 +29,7 @@
 
 ```bash
 npm install
+npm test
 npx wrangler dev
 ```
 
@@ -68,6 +70,14 @@ npx wrangler secret put JWT_SECRET
 
 ```bash
 npx wrangler deploy
+```
+
+### 已有部署升级到 trackers_json 版本
+
+历史记录新增了 `trackers_json` 列（tracker 结构化存储，旧数据自动回退从 magnet 反解），已有数据库需执行一次迁移：
+
+```bash
+npx wrangler d1 execute t2m-db --remote --command "ALTER TABLE history ADD COLUMN trackers_json TEXT"
 ```
 
 ## 本地 D1 初始化
