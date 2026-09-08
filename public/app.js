@@ -37,10 +37,7 @@
   const btnSubmitLogin = document.getElementById('btnSubmitLogin');
   const historyPanel = document.getElementById('historyPanel');
   const resultsView = document.getElementById('resultsView');
-  const tabResultsView = document.getElementById('tabResultsView');
-  const tabHistoryView = document.getElementById('tabHistoryView');
   const historySearch = document.getElementById('globalSearch');
-  const pageTitle = document.getElementById('pageTitle');
   const resultCount = document.getElementById('resultCount');
   const historyCount = document.getElementById('historyCount');
   const navHistory = document.getElementById('navHistory');
@@ -248,26 +245,17 @@
     closeDrawer();
     currentView = view;
     const isHistory = view === 'history';
-    tabResultsView.classList.toggle('active', !isHistory);
-    tabHistoryView.classList.toggle('active', isHistory);
-    tabResultsView.setAttribute('aria-selected', String(!isHistory));
-    tabHistoryView.setAttribute('aria-selected', String(isHistory));
     historyPanel.classList.toggle('hidden', !isHistory);
     resultsView.classList.toggle('hidden', isHistory);
     statsResults.classList.toggle('hidden', isHistory);
     statsHistory.classList.toggle('hidden', !isHistory);
     filterSummary.classList.toggle('hidden', isHistory || !filterSummaryShown);
     historySearch.placeholder = isHistory ? '搜索历史记录…' : '搜索转换结果…';
-    pageTitle.textContent = isHistory ? '历史' : '转换';
     document.querySelectorAll('.nav-item[data-view]').forEach(function (item) {
       item.classList.toggle('active', item.dataset.view === view);
     });
     btnCopyAll.style.display = isHistory ? 'none' : (resultList.children.length > 0 ? '' : 'none');
   }
-
-  [tabResultsView, tabHistoryView].forEach(function (tab) {
-    tab.addEventListener('click', function () { switchView(tab.dataset.view); });
-  });
 
   document.querySelectorAll('.nav-item[data-view]').forEach(function (item) {
     item.addEventListener('click', function () { switchView(item.dataset.view); });
@@ -292,13 +280,11 @@
       btnLogin.style.display = 'none';
       authUser.classList.add('active');
       authUsername.textContent = data.username || '';
-      tabHistoryView.style.display = '';
       navHistory.style.display = '';
     } else {
       btnLogin.style.display = 'inline-flex';
       authUser.classList.remove('active');
       loginDropdown.classList.remove('active');
-      tabHistoryView.style.display = 'none';
       navHistory.style.display = 'none';
       switchView('results');
     }

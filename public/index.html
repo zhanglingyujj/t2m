@@ -126,7 +126,7 @@
     <!-- 主列：工具栏 + 主内容区 -->
     <div class="main-col">
       <header class="topbar">
-        <div class="topbar-title" id="pageTitle">转换</div>
+        <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
         <div class="auth-area">
           <button id="btnLogin" class="btn-login">登录</button>
           <div id="authUser" class="auth-user">
@@ -143,24 +143,6 @@
       </header>
 
       <main class="panel-right">
-        <!-- 标签页 + 搜索 + 主操作 -->
-        <div class="content-header">
-          <div class="view-switch" role="tablist">
-            <button type="button" id="tabResultsView" class="view-tab active" data-view="results" role="tab" aria-selected="true">转换</button>
-            <button type="button" id="tabHistoryView" class="view-tab" data-view="history" style="display:none" role="tab" aria-selected="false">历史</button>
-          </div>
-          <div class="content-header-actions">
-            <input type="text" id="globalSearch" class="global-search" placeholder="搜索转换结果…" autocomplete="off">
-            <button id="btnCopyAll" class="btn btn-primary btn-copy-all" style="display:none">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              一键复制全部
-            </button>
-          </div>
-        </div>
-
         <div class="content-body">
           <!-- 转换结果视图 -->
           <div id="resultsView" class="content-view">
@@ -267,6 +249,14 @@
                 非视频后缀正则: <code id="filterRegex"></code>
               </div>
             </div>
+
+            <button id="btnCopyAll" class="btn btn-primary btn-copy-all" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              一键复制全部
+            </button>
 
             <!-- 详情抽屉：右栏内滑入卡片（移动端降级为底部弹层） -->
             <aside id="drawer" class="drawer hidden" aria-label="种子详情">
