@@ -126,6 +126,35 @@ test('buildView：字段缺失时给出空值默认', () => {
   assert.strictEqual(view.creationDate, null);
 });
 
+test('composeMagnet：输出选项作为显式参数，注入/dn/tr 可独立控制', () => {
+  const view = Magnet.buildView({
+    name: 'n',
+    infoHash: 'ab',
+    trackers: ['http://own/announce'],
+    files: []
+  });
+
+  // 全关：仅 hash
+  assert.strictEqual(
+    Magnet.composeMagnet(view, { injectTrackers: false, includeName: false, includeTrackers: false }),
+    'magnet:?xt=urn:btih:ab'
+  );
+  // 不注入、含 dn 与 tr
+  assert.strictEqual(
+    Magnet.composeMagnet(view, { injectTrackers: false, includeName: true, includeTrackers: true }),
+    'magnet:?xt=urn:btih:ab&dn=n&tr=' + encodeURIComponent('http://own/announce')
+  );
+  // 注入：公共 tracker 去重后追加在自有 tracker 之后
+  const injected = Magnet.composeMagnet(view, { injectTrackers: true, includeName: false, includeTrackers: true });
+  assert.ok(injected.startsWith('magnet:?xt=urn:btih:ab&tr=' + encodeURIComponent('http://own/announce') + '&'));
+  assert.ok(injected.includes('tr=' + encodeURIComponent(Magnet.PUBLIC_TRACKERS[0])));
+  // 注入但关闭 tr：不出现 tracker 参数
+  assert.strictEqual(
+    Magnet.composeMagnet(view, { injectTrackers: true, includeName: false, includeTrackers: false }),
+    'magnet:?xt=urn:btih:ab'
+  );
+});
+
 test('injectPublicTrackers：与公共列表去重后追加', () => {
   const own = ['http://custom/announce', Magnet.PUBLIC_TRACKERS[0]];
   const merged = Magnet.injectPublicTrackers(own);
