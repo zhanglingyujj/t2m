@@ -94,6 +94,38 @@ test('buildMagnetLink：默认包含 dn 与 tr，选项可分别关闭', () => {
   );
 });
 
+test('buildView：从部分字段补全派生字段，构造 torrentView', () => {
+  const view = Magnet.buildView({
+    name: 'dir',
+    infoHash: 'ab',
+    trackers: ['http://t1/announce'],
+    creationDate: 1700000000,
+    files: [
+      { path: 'sub/a.mp4', size: 10 },
+      { path: 'b.txt', size: 20 }
+    ]
+  });
+
+  assert.strictEqual(view.name, 'dir');
+  assert.strictEqual(view.infoHash, 'ab');
+  assert.deepStrictEqual(view.trackers, ['http://t1/announce']);
+  assert.strictEqual(view.creationDate, 1700000000);
+  assert.strictEqual(view.totalSize, 30);
+  assert.deepStrictEqual(view.extensions.sort(), ['.mp4', '.txt']);
+  assert.strictEqual(view.hasVideo, true);
+});
+
+test('buildView：字段缺失时给出空值默认', () => {
+  const view = Magnet.buildView({ name: 'n', infoHash: 'ab' });
+
+  assert.deepStrictEqual(view.files, []);
+  assert.strictEqual(view.totalSize, 0);
+  assert.deepStrictEqual(view.extensions, []);
+  assert.strictEqual(view.hasVideo, false);
+  assert.deepStrictEqual(view.trackers, []);
+  assert.strictEqual(view.creationDate, null);
+});
+
 test('injectPublicTrackers：与公共列表去重后追加', () => {
   const own = ['http://custom/announce', Magnet.PUBLIC_TRACKERS[0]];
   const merged = Magnet.injectPublicTrackers(own);
