@@ -26,6 +26,8 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --col-main-max: 1200px; /* 中栏 card list 最大宽度 */
+  --col-aside: 336px;     /* 右栏宽度 */
 
   --font-mono: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
   --transition: 0.15s ease;
@@ -58,7 +60,7 @@ body {
 /* ===== 整体框架：sidebar + 主列 ===== */
 .app-shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100dvh;
 }
 
@@ -323,11 +325,16 @@ body {
 }
 .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
-/* ===== 主内容区 ===== */
+/* ===== 主内容区 =====
+   不设整体 max-width：中栏封顶 --col-main-max，右栏封顶 --col-aside 且距右缘固定 24px，
+   多余宽度均分到左中、中右两个间距（左侧通过自适应 padding 实现） */
 .panel-right {
   width: 100%;
-  max-width: 1440px;
   padding: var(--space-5) var(--space-6) 48px;
+  padding-left: max(
+    var(--space-6),
+    calc((100% - var(--col-main-max) - var(--col-aside) - var(--space-6)) / 2)
+  );
 }
 
 /* 标签页 + 搜索 + 主操作 */
@@ -410,7 +417,8 @@ body {
 /* 主次双栏：主内容 + 右侧辅助栏（间距与两侧留白统一为 24px） */
 .content-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, var(--col-main-max)) var(--col-aside);
+  justify-content: space-between;
   gap: var(--space-6);
   align-items: start;
 }
