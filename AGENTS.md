@@ -50,11 +50,15 @@ T2M/
 │   └── research/           # 调研记录
 ├── src/
 │   └── index.js            # Worker 入口：JWT 认证 + 历史 API + 静态资源托管
+├── test/
+│   ├── torrent-parser.test.js  # Magnet / Bencode 模块用例（node:test）
+│   └── history-adapter.test.js # 历史行适配器用例（node:test）
 └── public/
     ├── index.html          # 主页面
     ├── style.css           # 样式
     ├── app.js              # UI 逻辑
-    ├── torrent-parser.js   # Bencode 解析 + 磁力链接生成
+    ├── torrent-parser.js   # Bencode 解析 + torrentView 组装（buildView）
+    ├── history-adapter.js  # D1 历史行 → torrentView 适配器
     └── t2m-icon.svg        # 站点图标（favicon + 侧栏品牌）
 ```
 
@@ -62,7 +66,8 @@ T2M/
 
 | 文件 | 职责 |
 |------|------|
-| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，构造磁力链接（dn/tr 可选，公共 tracker 注入，hash base32 转换） |
+| `public/torrent-parser.js` | Bencode 解码器，提取 info dict 原始字节，计算 SHA-1，组装 torrentView（buildView，含 files/totalSize/extensions/hasVideo 派生字段），构造磁力链接（dn/tr 可选，公共 tracker 注入，hash base32 转换） |
+| `public/history-adapter.js` | D1 历史行 → torrentView 适配器：tracker 优先读 trackers_json，旧行回退 magnet 反解 |
 | `public/app.js` | 拖拽/文件选择处理，批量解析，结果渲染，复制/分享/一键打开，输出选项，抽屉详情，历史与登录 |
 | `public/index.html` | 页面结构与语义标签（双栏工作台 + 侧滑抽屉 + 移动端页签） |
 | `public/style.css` | 响应式布局，拖拽区域高亮，结果列表样式 |
@@ -82,6 +87,9 @@ T2M/
 ```bash
 # 安装依赖（仅 wrangler）
 npm install
+
+# 运行测试（node:test，无额外依赖）
+npm test
 
 # 启动本地开发服务器
 npx wrangler dev

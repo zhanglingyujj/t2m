@@ -122,19 +122,20 @@ async function handlePostHistory(request, env) {
   if (!user) return jsonResponse({ error: '未登录' }, 401);
   let body;
   try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid JSON' }, 400); }
-  const { name, infoHash, magnet, fileCount, totalSize, files } = body || {};
+  const { name, infoHash, magnet, fileCount, totalSize, files, trackers } = body || {};
   if (!name || !infoHash || !magnet) {
     return jsonResponse({ error: '缺少必要字段' }, 400);
   }
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const stmt = env.DB.prepare(
-    'INSERT OR IGNORE INTO history (id, user_id, name, info_hash, magnet, file_count, total_size, files_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO history (id, user_id, name, info_hash, magnet, file_count, total_size, files_json, trackers_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
   await stmt.bind(
     id, user.sub, name, infoHash, magnet,
     fileCount || null, totalSize || null,
-    files ? JSON.stringify(files) : null, now
+    files ? JSON.stringify(files) : null,
+    trackers ? JSON.stringify(trackers) : null, now
   ).run();
   const getStmt = env.DB.prepare('SELECT * FROM history WHERE id = ?');
   const row = (await getStmt.bind(id).all()).results[0];

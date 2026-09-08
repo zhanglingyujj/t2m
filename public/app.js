@@ -171,22 +171,6 @@
   }
 
   /**
-   * 从历史记录中的磁力链接提取 tracker 列表
-   */
-  function trackersFromMagnet(magnet) {
-    const trackers = [];
-    const re = /[?&]tr=([^&]*)/g;
-    let m;
-    while ((m = re.exec(magnet))) {
-      try {
-        const tr = decodeURIComponent(m[1]);
-        if (!trackers.includes(tr)) trackers.push(tr);
-      } catch (e) {}
-    }
-    return trackers;
-  }
-
-  /**
    * 一键打开：触发 magnet: URI 交给系统客户端处理
    */
   function openMagnet(magnet) {
@@ -348,10 +332,10 @@
     } catch (e) {}
   }
 
-  async function saveHistory(name, infoHash, magnet, fileList) {
+  async function saveHistory(name, infoHash, magnet, files, trackers) {
     if (!isAuthenticated) return;
     try {
-      const totalSize = getTotalSize(fileList);
+      const totalSize = getTotalSize(files);
       await fetch('/api/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -359,9 +343,10 @@
           name: name,
           infoHash: infoHash,
           magnet: magnet,
-          fileCount: fileList.length,
+          fileCount: files.length,
           totalSize: totalSize,
-          files: fileList
+          files: files,
+          trackers: trackers || []
         })
       });
       loadHistory(historySearch.value || undefined);
@@ -421,45 +406,17 @@
     }
 
     // 统计
-    const Magnet = window.T2M.Magnet;
+    const History = window.T2M.History;
     var videoCount = 0;
     var nonVideoCount = 0;
     for (var i = 0; i < data.length; i++) {
-      var files = [];
-      try { files = JSON.parse(data[i].files_json || '[]'); } catch(e) {}
-      var exts = [];
-      for (var j = 0; j < files.length; j++) {
-        var path = files[j].path || '';
-        var dotIdx = path.lastIndexOf('.');
-        if (dotIdx >= 0 && dotIdx < path.length - 1) {
-          exts.push(path.substring(dotIdx).toLowerCase());
-        }
-      }
-      var hasVideo = exts.some(function (e) { return Magnet.VIDEO_EXTENSIONS.has(e); });
-      if (hasVideo) videoCount++; else nonVideoCount++;
+      if (History.rowToView(data[i]).view.hasVideo) videoCount++; else nonVideoCount++;
     }
     statTotal.textContent = data.length;
     historyCount.textContent = data.length > 0 ? data.length + ' 条' : '';
     statVideo.textContent = videoCount;
     statNonVideo.textContent = nonVideoCount;
     historyPager.update(historyPageNum, totalPages, total);
-  }
-
-  /**
-   * 历史记录转换为抽屉可用的 result 结构（与转换结果逻辑对齐）
-   */
-  function historyToResult(record) {
-    let files = [];
-    try { files = JSON.parse(record.files_json || '[]'); } catch (e) {}
-    return {
-      name: record.name,
-      infoHash: record.info_hash,
-      trackers: trackersFromMagnet(record.magnet || ''),
-      files: files.map(function (f) {
-        return { path: f.path || '', size: f.size || f.length || 0 };
-      }),
-      creationDate: null
-    };
   }
 
   historySearch.addEventListener('input', function () {
@@ -488,7 +445,7 @@
     var item = e.target.closest('.history-item');
     if (!item) return;
     var record = historyData.find(function (h) { return String(h.id) === item.dataset.id; });
-    if (record) openDrawer(historyToResult(record));
+    if (record) openDrawer(window.T2M.History.rowToView(record).view);
   });
 
   // ===== 拖拽增强 =====
@@ -598,7 +555,7 @@
       // 保存历史
       for (var j = 0; j < allTorrentResults.length; j++) {
         var r = allTorrentResults[j];
-        saveHistory(r.name, r.infoHash, r.magnet, r.files);
+        saveHistory(r.name, r.infoHash, r.magnet, r.files, r.trackers);
       }
     }
   }
@@ -867,7 +824,7 @@
     const files = result.files || [];
     drawerName.textContent = result.name;
     drawerName.title = result.name;
-    drawerSize.textContent = formatSize(getTotalSize(files));
+    drawerSize.textContent = formatSize(result.totalSize);
     drawerFileCount.textContent = files.length + ' 个';
     drawerCreationDate.textContent = window.T2M.Magnet.formatCreationDate(result.creationDate);
 

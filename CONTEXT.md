@@ -2,7 +2,7 @@
 
 ## torrentView（种子视图）
 
-`T2M.Magnet.convertTorrent` 返回的归一化种子视图：
+`T2M.Magnet.buildView` 组装、`convertTorrent`（fresh 解析）与 `T2M.History.rowToView`（历史行适配）共用的归一化种子视图：
 
 ```
 { name, infoHash, trackers, creationDate, files, totalSize, extensions, hasVideo }
@@ -12,3 +12,7 @@
 - `extensions`：含点号的小写扩展名数组（去重）
 - 调用方（`app.js` 及后续的历史 adapter）不接触原始 `info` 字典；布局解析知识只在 Magnet 模块内存在一份
 - 磁力链接不由 torrentView 携带，统一由 `composeMagnet`（app.js）按输出选项生成
+
+## History adapter（历史行适配器）
+
+`public/history-adapter.js` 的 `T2M.History.rowToView(record)`：D1 history 行 → torrentView + 元信息（`id`/`createdAt`）。tracker 优先直读 `trackers_json` 列（新行）；旧行无该列时回退从 magnet 字符串反解。两个 adapter（fresh 解析 / 历史行）共用 `buildView` seam 的事实就是 torrentView 的合法性来源。

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS history (
   file_count INTEGER,
   total_size INTEGER,
   files_json TEXT,
+  trackers_json TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(user_id, info_hash)
 );
